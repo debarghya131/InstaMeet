@@ -14,10 +14,18 @@ export default function LandingPage() {
             </Link>
 
             <div className="landing-actions">
-              <button className="nav-button nav-button-success">Login</button>
-              <button className="nav-button nav-button-register">
+              <Link
+                className="nav-button nav-button-success nav-link-button"
+                to="/authentication?mode=login"
+              >
+                Login
+              </Link>
+              <Link
+                className="nav-button nav-button-register nav-link-button"
+                to="/authentication?mode=signup"
+              >
                 Register
-              </button>
+              </Link>
               <button className="nav-button nav-button-accent">
                 Join as Guest
               </button>
