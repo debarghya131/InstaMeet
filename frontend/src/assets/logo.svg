@@ -1,0 +1,34 @@
+<svg width="900" height="250" viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Gradient -->
+  <defs>
+    <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#ff4d8d"></stop>
+      <stop offset="50%" stop-color="#7b5cff"></stop>
+      <stop offset="100%" stop-color="#4facfe"></stop>
+    </linearGradient>
+  </defs>
+
+  <!-- Camera Icon -->
+  <g transform="translate(60,70)">
+    <rect x="0" y="0" width="120" height="90" rx="20" fill="url(#grad)"></rect>
+    <polygon points="120,25 170,5 170,85 120,65" fill="url(#grad)"></polygon>
+    
+    <!-- Lens -->
+    <rect x="25" y="25" width="40" height="40" rx="6" fill="#ffffff"></rect>
+    
+    <!-- Dot -->
+    <circle cx="90" cy="20" r="8" fill="#ffffff"></circle>
+  </g>
+
+  <!-- Text -->
+  <text x="260" y="145" font-family="Poppins, Arial, sans-serif" font-size="90" font-weight="600" fill="url(#grad)">
+    InstaMeet
+  </text>
+
+  <!-- Tagline -->
+  <text x="600" y="200" font-family="Poppins, Arial, sans-serif" font-size="32" font-weight="700" fill="#1e90ff">
+    by Debarghya ❤️
+  </text>
+
+</svg>
