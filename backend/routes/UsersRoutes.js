@@ -1,25 +1,21 @@
 import express from "express";
+import {
+  createMeeting,
+  getCurrentUser,
+  getMeetings,
+  getMyMeetings,
+  getUserById,
+  getUsers,
+  loginUser,
+  registerUser,
+} from "../controllers/UserController.js";
 
 const router = express.Router();
-
-const sampleUsers = [
-  {
-    id: 1,
-    name: "Debarghya",
-    email: "debarghya@example.com",
-  },
-  {
-    id: 2,
-    name: "Test User",
-    email: "test@example.com",
-  },
-];
 
 router.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Users route working properly.",
-    data: sampleUsers,
+    message: "Users API is working properly.",
   });
 });
 
@@ -30,12 +26,13 @@ router.get("/test", (req, res) => {
   });
 });
 
-router.post("/echo", (req, res) => {
-  res.status(201).json({
-    success: true,
-    message: "Received request body successfully.",
-    data: req.body,
-  });
-});
+router.get("/all", getUsers);
+router.get("/meetings", getMeetings);
+router.get("/me", getCurrentUser);
+router.get("/my-meetings", getMyMeetings);
+router.get("/:id", getUserById);
+router.post("/register", registerUser);
+router.post("/login", loginUser);
+router.post("/meetings", createMeeting);
 
 export default router;
