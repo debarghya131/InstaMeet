@@ -1,9 +1,15 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import "../App.css";
 import logo from "../assets/logo.svg";
 
 export default function LandingPage() {
+  const navigate = useNavigate();
+
+  const handleStartFlow = () => {
+    navigate("/authentication?mode=signup&redirect=/video-meet");
+  };
+
   return (
     <main className="landing-page">
       <div className="landing-overlay">
@@ -29,7 +35,10 @@ export default function LandingPage() {
               <button className="nav-button nav-button-accent">
                 Join as Guest
               </button>
-              <button className="nav-button nav-button-primary">
+              <button
+                className="nav-button nav-button-primary"
+                onClick={handleStartFlow}
+              >
                 Start Meeting
               </button>
             </div>
@@ -43,7 +52,9 @@ export default function LandingPage() {
               and shared rooms.
             </p>
             <div className="landing-hero-actions">
-              <button className="hero-button">Get Started</button>
+              <button className="hero-button" onClick={handleStartFlow}>
+                Get Started
+              </button>
             </div>
             <p className="landing-credit">by Debarghya ❤️</p>
           </section>

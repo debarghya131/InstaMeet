@@ -7,6 +7,7 @@ export default function AuthenticationPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedMode = searchParams.get("mode") === "signup" ? "signup" : "login";
+  const redirectPath = searchParams.get("redirect") || "/video-meet";
   const [mode, setMode] = useState("login");
   const [formValues, setFormValues] = useState({
     name: "",
@@ -27,7 +28,7 @@ export default function AuthenticationPage() {
 
   const handleModeChange = (nextMode) => {
     setMode(nextMode);
-    setSearchParams({ mode: nextMode });
+    setSearchParams({ mode: nextMode, redirect: redirectPath });
     setStatus({
       loading: false,
       error: "",
@@ -83,25 +84,43 @@ export default function AuthenticationPage() {
         throw new Error(result.message || "Authentication request failed.");
       }
 
-      localStorage.setItem("instameet_user", JSON.stringify(result.data));
-      localStorage.setItem("instameet_token", result.data.token);
+      if (isLogin) {
+        localStorage.setItem("instameet_user", JSON.stringify(result.data));
+        localStorage.setItem("instameet_token", result.data.token);
 
-      setStatus({
-        loading: false,
-        error: "",
-        success: result.message,
-      });
+        setStatus({
+          loading: false,
+          error: "",
+          success: result.message,
+        });
 
-      setFormValues({
-        name: "",
-        username: "",
-        password: "",
-        confirmPassword: "",
-      });
+        setFormValues({
+          name: "",
+          username: "",
+          password: "",
+          confirmPassword: "",
+        });
 
-      window.setTimeout(() => {
-        navigate("/");
-      }, 900);
+        window.setTimeout(() => {
+          navigate(redirectPath);
+        }, 900);
+      } else {
+        setStatus({
+          loading: false,
+          error: "",
+          success: "Signup successful. Please login to continue.",
+        });
+
+        setFormValues({
+          name: "",
+          username: formValues.username,
+          password: "",
+          confirmPassword: "",
+        });
+
+        setMode("login");
+        setSearchParams({ mode: "login", redirect: redirectPath });
+      }
     } catch (error) {
       setStatus({
         loading: false,
