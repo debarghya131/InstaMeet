@@ -2,6 +2,7 @@ import crypto from "crypto";
 
 import User from "../model/UserModels.js";
 import Meeting from "../model/MeetingSchema.js";
+import { closeMeetingRoom } from "./SocketManager.js";
 
 const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24;
 
@@ -331,6 +332,64 @@ const createMeeting = async (req, res) => {
   }
 };
 
+const getOrCreateGuestUser = async () => {
+  const existingGuest = await User.findOne({ username: "guest" });
+  if (existingGuest) {
+    return existingGuest;
+  }
+
+  const randomPassword = crypto.randomBytes(24).toString("hex");
+
+  const guestUser = await User.create({
+    name: "Guest User",
+    username: "guest",
+    password: hashPassword(randomPassword),
+  });
+
+  return guestUser;
+};
+
+const createGuestMeeting = async (req, res) => {
+  try {
+    const { meetingCode } = req.body;
+
+    if (!meetingCode) {
+      return res.status(400).json({
+        success: false,
+        message: "meetingCode is required.",
+      });
+    }
+
+    const existingMeeting = await Meeting.findOne({ meetingCode });
+
+    if (existingMeeting) {
+      return res.status(409).json({
+        success: false,
+        message: "Meeting code already exists.",
+      });
+    }
+
+    const guestUser = await getOrCreateGuestUser();
+
+    const meeting = await Meeting.create({
+      userId: guestUser._id,
+      meetingCode,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Guest meeting created successfully.",
+      data: meeting,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to create guest meeting.",
+      error: error.message,
+    });
+  }
+};
+
 const getMeetings = async (req, res) => {
   try {
     const meetings = await Meeting.find()
@@ -371,10 +430,100 @@ const getMyMeetings = async (req, res) => {
   }
 };
 
+const getMeetingByCode = async (req, res) => {
+  try {
+    const { meetingCode } = req.params;
+
+    if (!meetingCode) {
+      return res.status(400).json({
+        success: false,
+        message: "meetingCode is required.",
+      });
+    }
+
+    const meeting = await Meeting.findOne({ meetingCode }).populate(
+      "userId",
+      "name username"
+    );
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Meeting not found.",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "Meeting fetched successfully.",
+      data: meeting,
+    });
+  } catch (error) {
+    return res.status(500).json({
+      success: false,
+      message: "Unable to fetch meeting.",
+      error: error.message,
+    });
+  }
+};
+
+const endHostedMeeting = async (req, res) => {
+  try {
+    const { meetingCode } = req.body;
+    const user = await getAuthenticatedUser(req);
+
+    if (!meetingCode) {
+      return res.status(400).json({
+        success: false,
+        message: "meetingCode is required.",
+      });
+    }
+
+    const meeting = await Meeting.findOne({
+      meetingCode,
+      userId: user._id,
+    }).select("_id meetingCode");
+
+    if (!meeting) {
+      return res.status(404).json({
+        success: false,
+        message: "Hosted meeting not found.",
+      });
+    }
+
+    await Meeting.deleteOne({ _id: meeting._id });
+    await closeMeetingRoom(meeting.meetingCode, "Host ended the meeting.");
+
+    return res.status(200).json({
+      success: true,
+      message: "Hosted meeting ended successfully.",
+    });
+  } catch (error) {
+    const statusCode =
+      error.message === "Authorization token is required." ||
+      error.message === "Invalid token format." ||
+      error.message === "Invalid token signature." ||
+      error.message === "Token expired." ||
+      error.message === "Invalid or expired session."
+        ? 401
+        : 500;
+
+    return res.status(statusCode).json({
+      success: false,
+      message:
+        statusCode === 401 ? error.message : "Unable to end hosted meeting.",
+      error: statusCode === 500 ? error.message : undefined,
+    });
+  }
+};
+
 export {
   createMeeting,
+  createGuestMeeting,
+  endHostedMeeting,
   getCurrentUser,
   getMeetings,
+  getMeetingByCode,
   getMyMeetings,
   getUserById,
   getUsers,

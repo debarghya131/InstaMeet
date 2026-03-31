@@ -1,5 +1,16 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+
+import {
+  AUTH_SETUP_PATH,
+  GUEST_SETUP_PATH,
+  clearAuthenticatedSession,
+  clearPendingHostRoom,
+  getPendingHostRoom,
+  markAuthenticatedSession,
+  markGuestSession,
+  resolveSessionContext,
+} from "../utils/session";
 
 const rtcConfiguration = {
   iceServers: [
@@ -8,17 +19,20 @@ const rtcConfiguration = {
     { urls: "stun:stun2.l.google.com:19302" },
   ],
 };
+const API_BASE_URL = "http://localhost:5000/api/users";
 
 export default function VideoMeetPage() {
   const navigate = useNavigate();
   const localVideoRef = useRef(null);
   const peerConnectionRef = useRef(null);
   const localStreamRef = useRef(null);
-  const savedUser =
-    typeof window !== "undefined"
-      ? JSON.parse(localStorage.getItem("instameet_user") || "null")
-      : null;
-  const displayName = savedUser?.name || savedUser?.username || "Guest User";
+  const {
+    authToken,
+    userId: storedUserId,
+    userName: displayName,
+    isAuthenticatedUser,
+    isGuestUser,
+  } = resolveSessionContext();
 
   const [connectionState, setConnectionState] = useState("idle");
   const [iceGatheringState, setIceGatheringState] = useState("new");
@@ -29,6 +43,59 @@ export default function VideoMeetPage() {
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
   const [roomCodeInput, setRoomCodeInput] = useState("INSTA-ROOM-101");
   const [roomCode, setRoomCode] = useState("INSTA-ROOM-101");
+  const savedMediaPrefs =
+    typeof window !== "undefined"
+      ? JSON.parse(localStorage.getItem("instameet_media_prefs") || "null")
+      : null;
+  const initialAudioEnabled =
+    savedMediaPrefs?.audioEnabled === undefined ? true : savedMediaPrefs.audioEnabled;
+  const initialVideoEnabled =
+    savedMediaPrefs?.videoEnabled === undefined ? true : savedMediaPrefs.videoEnabled;
+
+  useEffect(() => {
+    if (isGuestUser) {
+      markGuestSession();
+      navigate(GUEST_SETUP_PATH, { replace: true });
+      return;
+    }
+
+    markAuthenticatedSession();
+  }, [isGuestUser, navigate]);
+
+  const endPendingHostedMeeting = async (targetRoomCode = "") => {
+    const pendingHostRoom = getPendingHostRoom();
+
+    if (!pendingHostRoom) {
+      return;
+    }
+
+    if (targetRoomCode && pendingHostRoom === targetRoomCode) {
+      clearPendingHostRoom();
+      return;
+    }
+
+    if (!authToken) {
+      clearPendingHostRoom();
+      return;
+    }
+
+    const response = await fetch(`${API_BASE_URL}/meetings/end`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${authToken}`,
+      },
+      body: JSON.stringify({ meetingCode: pendingHostRoom }),
+    });
+
+    const result = await response.json();
+
+    if (!response.ok && response.status !== 404) {
+      throw new Error(result.message || "Unable to end previous hosted meeting.");
+    }
+
+    clearPendingHostRoom();
+  };
 
   const stopVideoTracks = async () => {
     const stream = localStreamRef.current;
@@ -94,17 +161,25 @@ export default function VideoMeetPage() {
   };
 
   useEffect(() => {
+    if (isGuestUser) {
+      return undefined;
+    }
+
     let isDisposed = false;
 
     const startMeetingPreview = async () => {
       try {
         setConnectionState("requesting-media");
         setErrorMessage("");
+        let stream = new MediaStream();
+        const mediaConstraints = {
+          audio: Boolean(initialAudioEnabled),
+          video: Boolean(initialVideoEnabled),
+        };
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: true,
-        });
+        if (mediaConstraints.audio || mediaConstraints.video) {
+          stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        }
 
         if (isDisposed) {
           stream.getTracks().forEach((track) => track.stop());
@@ -163,7 +238,7 @@ export default function VideoMeetPage() {
       isDisposed = true;
       void releaseMeetingResources();
     };
-  }, []);
+  }, [initialAudioEnabled, initialVideoEnabled, isGuestUser]);
 
   const toggleAudio = () => {
     const audioTracks = localStreamRef.current?.getAudioTracks() || [];
@@ -178,6 +253,15 @@ export default function VideoMeetPage() {
       track.enabled = nextAudioState;
     });
     syncTrackState(localStreamRef.current);
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "instameet_media_prefs",
+        JSON.stringify({
+          audioEnabled: nextAudioState,
+          videoEnabled: isVideoEnabled,
+        })
+      );
+    }
     setErrorMessage("");
   };
 
@@ -196,6 +280,15 @@ export default function VideoMeetPage() {
           return;
         }
         await stopVideoTracks();
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "instameet_media_prefs",
+            JSON.stringify({
+              audioEnabled: isAudioEnabled,
+              videoEnabled: false,
+            })
+          );
+        }
         setErrorMessage("");
         return;
       }
@@ -223,14 +316,46 @@ export default function VideoMeetPage() {
 
       attachStreamToPreview(stream);
       syncTrackState(stream);
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "instameet_media_prefs",
+          JSON.stringify({
+            audioEnabled: isAudioEnabled,
+            videoEnabled: true,
+          })
+        );
+      }
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(error.message || "Unable to control camera.");
     }
   };
 
-  const handleRoomCodeSubmit = (event) => {
+  const handleLogout = async () => {
+    try {
+      if (isAuthenticatedUser) {
+        await endPendingHostedMeeting();
+      }
+
+      await releaseMeetingResources();
+
+      if (isAuthenticatedUser) {
+        clearAuthenticatedSession();
+      } else if (isGuestUser) {
+        markGuestSession();
+      }
+
+      navigate(
+        isAuthenticatedUser ? "/authentication?mode=login" : GUEST_SETUP_PATH
+      );
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to log out right now.");
+    }
+  };
+
+  const handleRoomCodeSubmit = async (event) => {
     event.preventDefault();
+    markAuthenticatedSession();
 
     const trimmedRoomCode = roomCodeInput.trim();
 
@@ -242,11 +367,91 @@ export default function VideoMeetPage() {
     const nextRoomCode = trimmedRoomCode.toUpperCase();
     setRoomCode(nextRoomCode);
     setErrorMessage("");
+
+    try {
+      await endPendingHostedMeeting(nextRoomCode);
+
+      markAuthenticatedSession();
+      const response = await fetch(`${API_BASE_URL}/meetings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+        },
+        body: JSON.stringify({ meetingCode: nextRoomCode }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "Unable to create meeting.");
+      }
+
+      await releaseMeetingResources();
+      if (typeof window !== "undefined") {
+        localStorage.setItem(
+          "instameet_media_prefs",
+          JSON.stringify({
+            audioEnabled: isAudioEnabled,
+            videoEnabled: isVideoEnabled,
+          })
+        );
+      }
+      navigate(`/room/${nextRoomCode}`, {
+        state: {
+          userName: displayName,
+          userId: storedUserId,
+          role: "user",
+          setupPath: AUTH_SETUP_PATH,
+        },
+      });
+    } catch (error) {
+      setErrorMessage(error.message || "Unable to create meeting.");
+    }
+  };
+
+  const handleJoinMeet = async () => {
+    markAuthenticatedSession();
+    const trimmedRoomCode = roomCodeInput.trim();
+
+    if (!trimmedRoomCode) {
+      setErrorMessage("Please enter a room ID.");
+      return;
+    }
+
+    const nextRoomCode = trimmedRoomCode.toUpperCase();
+    setRoomCode(nextRoomCode);
+    setErrorMessage("");
+
+    try {
+      await endPendingHostedMeeting(nextRoomCode);
+
+      const response = await fetch(`${API_BASE_URL}/meetings/code/${nextRoomCode}`);
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || "This room code is not valid.");
+      }
+    } catch (error) {
+      setErrorMessage(error.message || "This room code is not valid.");
+      return;
+    }
+    if (typeof window !== "undefined") {
+      localStorage.setItem(
+        "instameet_media_prefs",
+        JSON.stringify({
+          audioEnabled: isAudioEnabled,
+          videoEnabled: isVideoEnabled,
+        })
+      );
+    }
     void releaseMeetingResources().finally(() => {
       navigate(`/room/${nextRoomCode}`, {
         state: {
           userName: displayName,
-          userId: savedUser?.id || "",
+          userId: storedUserId,
+          role: "user",
+          setupPath: AUTH_SETUP_PATH,
         },
       });
     });
@@ -261,9 +466,9 @@ export default function VideoMeetPage() {
           </div>
 
           <div className="video-meet-topbar-actions">
-            <Link className="video-meet-back" to="/">
-              Back Home
-            </Link>
+            <button type="button" className="video-meet-back" onClick={handleLogout}>
+              Log Out
+            </button>
           </div>
         </div>
 
@@ -272,7 +477,7 @@ export default function VideoMeetPage() {
             <p className="video-meet-tagline">Connect with your ❤️ ones</p>
             <form className="video-room-form" onSubmit={handleRoomCodeSubmit}>
               <label className="video-room-label" htmlFor="roomCode">
-                Create your custom room ID
+                Create or join with a room ID
               </label>
               <div className="video-room-form-row">
                 <input
@@ -284,7 +489,14 @@ export default function VideoMeetPage() {
                   placeholder="Enter room ID"
                 />
                 <button type="submit" className="video-room-submit">
-                  Connect
+                  Create
+                </button>
+                <button
+                  type="button"
+                  className="video-room-submit video-room-submit-secondary"
+                  onClick={handleJoinMeet}
+                >
+                  Join Meet
                 </button>
               </div>
             </form>

@@ -1,6 +1,9 @@
 import { Server } from "socket.io";
+import Meeting from "../model/MeetingSchema.js";
 
 const roomParticipants = new Map();
+const roomHostMap = new Map();
+let ioInstance = null;
 
 const getRoomUsers = (roomId) => roomParticipants.get(roomId) || [];
 
@@ -14,6 +17,55 @@ const addParticipantToRoom = (roomId, participant) => {
   roomParticipants.set(roomId, updatedParticipants);
 
   return updatedParticipants;
+};
+
+const isValidObjectId = (value) =>
+  typeof value === "string" && /^[a-f\d]{24}$/i.test(value);
+
+const ensureMeetingExists = async (roomId, userId) => {
+  if (!roomId || !isValidObjectId(userId)) {
+    return;
+  }
+
+  const existingMeeting = await Meeting.findOne({ meetingCode: roomId }).select(
+    "_id"
+  );
+
+  if (!existingMeeting) {
+    await Meeting.create({
+      userId,
+      meetingCode: roomId,
+    });
+  }
+};
+
+const getHostUserId = async (roomId) => {
+  if (roomHostMap.has(roomId)) {
+    return roomHostMap.get(roomId);
+  }
+
+  const meeting = await Meeting.findOne({ meetingCode: roomId })
+    .populate("userId", "username")
+    .select("userId");
+
+  const isGuestMeeting =
+    meeting?.userId &&
+    typeof meeting.userId === "object" &&
+    meeting.userId.username === "guest";
+
+  if (isGuestMeeting) {
+    return null;
+  }
+
+  const hostUserId = meeting?.userId
+    ? String(meeting.userId._id || meeting.userId)
+    : null;
+
+  if (hostUserId) {
+    roomHostMap.set(roomId, hostUserId);
+  }
+
+  return hostUserId;
 };
 
 const removeParticipantFromRoom = (socketId) => {
@@ -47,6 +99,9 @@ const removeParticipantFromRoom = (socketId) => {
   return removedParticipant;
 };
 
+const findParticipantInRoom = (roomId, socketId) =>
+  getRoomUsers(roomId).find((participant) => participant.socketId === socketId);
+
 const updateParticipantState = (roomId, socketId, updates) => {
   const participants = getRoomUsers(roomId);
   const updatedParticipants = participants.map((participant) =>
@@ -59,6 +114,30 @@ const updateParticipantState = (roomId, socketId, updates) => {
   return updatedParticipants.find((participant) => participant.socketId === socketId);
 };
 
+const closeMeetingRoom = async (
+  roomId,
+  message = "Host ended the meeting."
+) => {
+  if (!roomId) {
+    return;
+  }
+
+  if (ioInstance) {
+    ioInstance.to(roomId).emit("meeting-ended", {
+      roomId,
+      message,
+    });
+
+    const sockets = await ioInstance.in(roomId).fetchSockets();
+    sockets.forEach((clientSocket) => {
+      clientSocket.leave(roomId);
+    });
+  }
+
+  roomParticipants.delete(roomId);
+  roomHostMap.delete(roomId);
+};
+
 const setupSocket = (server) => {
   const io = new Server(server, {
     cors: {
@@ -66,6 +145,7 @@ const setupSocket = (server) => {
       methods: ["GET", "POST"],
     },
   });
+  ioInstance = io;
 
   io.on("connection", (socket) => {
     console.log(`Socket connected: ${socket.id}`);
@@ -75,12 +155,65 @@ const setupSocket = (server) => {
       socketId: socket.id,
     });
 
-    socket.on("join-room", ({ roomId, userName, userId }) => {
+    socket.on("join-room", async ({ roomId, userName, userId }) => {
       if (!roomId) {
         socket.emit("socket-error", {
           message: "roomId is required to join a room.",
         });
         return;
+      }
+
+      const isGuestJoin =
+        !isValidObjectId(String(userId || "")) ||
+        String(userName || "").trim().toLowerCase() === "guest user";
+
+      if (isGuestJoin) {
+        try {
+          const meeting = await Meeting.findOne({ meetingCode: roomId })
+            .populate("userId", "username")
+            .select("userId");
+
+          const hostUsername =
+            meeting?.userId && typeof meeting.userId === "object"
+              ? meeting.userId.username
+              : null;
+
+          if (meeting && hostUsername && hostUsername !== "guest") {
+            socket.emit("socket-error", {
+              code: "GUEST_FORBIDDEN",
+              message:
+                "Guests cannot join meetings created by authenticated users. Please sign in.",
+            });
+            return;
+          }
+        } catch (error) {
+          console.error("Guest join validation failed:", error);
+        }
+      }
+
+      try {
+        await ensureMeetingExists(roomId, userId);
+      } catch (error) {
+        console.error("Unable to ensure meeting exists:", error);
+      }
+
+      let hostUserId = null;
+
+      try {
+        hostUserId = await getHostUserId(roomId);
+      } catch (error) {
+        hostUserId = null;
+      }
+
+      if (!hostUserId) {
+        const fallbackHost = roomHostMap.get(roomId);
+        if (fallbackHost) {
+          hostUserId = fallbackHost;
+        } else {
+          const nextHost = String(userId || socket.id);
+          roomHostMap.set(roomId, nextHost);
+          hostUserId = nextHost;
+        }
       }
 
       socket.join(roomId);
@@ -89,6 +222,7 @@ const setupSocket = (server) => {
         roomId,
         userId: userId || socket.id,
         userName: userName || "Guest User",
+        isHost: hostUserId ? String(userId || socket.id) === hostUserId : false,
         isMuted: false,
         isVideoOff: false,
         joinedAt: new Date().toISOString(),
@@ -109,7 +243,13 @@ const setupSocket = (server) => {
     socket.on("send-message", (payload) => {
       const roomId = payload?.roomId;
       const message = payload?.message || "Empty message";
-      const senderName = payload?.senderName || "Guest User";
+      const participant = roomId ? findParticipantInRoom(roomId, socket.id) : null;
+      const senderName = payload?.senderName || participant?.userName || "Guest User";
+      const senderId =
+        payload?.senderId ||
+        payload?.userId ||
+        participant?.userId ||
+        socket.id;
 
       if (!roomId) {
         socket.emit("socket-error", {
@@ -119,7 +259,8 @@ const setupSocket = (server) => {
       }
 
       io.to(roomId).emit("receive-message", {
-        senderId: socket.id,
+        senderId,
+        senderSocketId: socket.id,
         senderName,
         roomId,
         message,
@@ -171,15 +312,34 @@ const setupSocket = (server) => {
       }
     });
 
-    socket.on("leave-room", ({ roomId }) => {
+    socket.on("leave-room", async ({ roomId, mode }) => {
       if (!roomId) {
         return;
       }
 
+      const leaveMode = mode || "leave";
       socket.leave(roomId);
       const removedRoomState = removeParticipantFromRoom(socket.id);
 
       if (removedRoomState) {
+        const hostUserId = roomHostMap.get(removedRoomState.roomId);
+        const isHostLeaving =
+          removedRoomState.participant.isHost ||
+          (hostUserId && String(removedRoomState.participant.userId) === hostUserId);
+        const isAuthenticatedHostLeavingToSetup =
+          isHostLeaving &&
+          leaveMode === "setup" &&
+          isValidObjectId(String(removedRoomState.participant.userId));
+
+        if (isHostLeaving && !isAuthenticatedHostLeavingToSetup) {
+          await Meeting.deleteOne({ meetingCode: removedRoomState.roomId });
+          await closeMeetingRoom(
+            removedRoomState.roomId,
+            "Host ended the meeting."
+          );
+          return;
+        }
+
         socket.to(removedRoomState.roomId).emit("user-left", {
           socketId: socket.id,
           roomId: removedRoomState.roomId,
@@ -193,10 +353,24 @@ const setupSocket = (server) => {
       }
     });
 
-    socket.on("disconnect", () => {
+    socket.on("disconnect", async () => {
       const removedRoomState = removeParticipantFromRoom(socket.id);
 
       if (removedRoomState) {
+        const hostUserId = roomHostMap.get(removedRoomState.roomId);
+        const isHostLeaving =
+          removedRoomState.participant.isHost ||
+          (hostUserId && String(removedRoomState.participant.userId) === hostUserId);
+
+        if (isHostLeaving) {
+          await Meeting.deleteOne({ meetingCode: removedRoomState.roomId });
+          await closeMeetingRoom(
+            removedRoomState.roomId,
+            "Host ended the meeting."
+          );
+          return;
+        }
+
         socket.to(removedRoomState.roomId).emit("user-left", {
           socketId: socket.id,
           roomId: removedRoomState.roomId,
@@ -217,3 +391,4 @@ const setupSocket = (server) => {
 };
 
 export default setupSocket;
+export { closeMeetingRoom };

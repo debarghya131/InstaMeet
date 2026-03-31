@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+import { saveAuthenticatedSession } from "../utils/session";
+
 const API_BASE_URL = "http://localhost:5000/api/users";
 
 export default function AuthenticationPage() {
@@ -85,8 +87,7 @@ export default function AuthenticationPage() {
       }
 
       if (isLogin) {
-        localStorage.setItem("instameet_user", JSON.stringify(result.data));
-        localStorage.setItem("instameet_token", result.data.token);
+        saveAuthenticatedSession(result.data);
 
         setStatus({
           loading: false,

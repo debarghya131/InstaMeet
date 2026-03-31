@@ -32,9 +32,12 @@ export default function LandingPage() {
               >
                 Register
               </Link>
-              <button className="nav-button nav-button-accent">
+              <Link
+                className="nav-button nav-button-accent nav-link-button"
+                to="/guest"
+              >
                 Join as Guest
-              </button>
+              </Link>
               <button
                 className="nav-button nav-button-primary"
                 onClick={handleStartFlow}
