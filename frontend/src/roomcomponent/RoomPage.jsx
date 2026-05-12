@@ -13,9 +13,8 @@ import {
   resolveSessionContext,
   setPendingHostRoom,
 } from "../utils/session";
+import { API_BASE_URL, SOCKET_SERVER_URL } from "../config";
 
-const SOCKET_SERVER_URL = "http://localhost:5000";
-const API_BASE_URL = "http://localhost:5000/api/users";
 const rtcConfiguration = {
   iceServers: [
     { urls: "stun:stun.l.google.com:19302" },
@@ -30,6 +29,8 @@ export default function RoomPage() {
   const navigate = useNavigate();
   const socketRef = useRef(null);
   const localStreamRef = useRef(null);
+  const cameraTrackRef = useRef(null);
+  const screenTrackRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
   const pendingOffersRef = useRef(new Set());
   const exitInProgressRef = useRef(false);
@@ -49,6 +50,7 @@ export default function RoomPage() {
   const [errorMessage, setErrorMessage] = useState("");
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isScreenSharing, setIsScreenSharing] = useState(false);
   const [isMediaReady, setIsMediaReady] = useState(false);
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [activePanel, setActivePanel] = useState("chat");
@@ -287,6 +289,50 @@ export default function RoomPage() {
     await replaceTrackForPeers("audio", audioTrack);
   };
 
+  const removeVideoTracksFromLocalStream = () => {
+    const localStream = ensureLocalStreamContainer();
+
+    localStream.getVideoTracks().forEach((track) => {
+      localStream.removeTrack(track);
+    });
+  };
+
+  const stopScreenShare = async ({ restoreCamera = true } = {}) => {
+    const screenTrack = screenTrackRef.current;
+    screenTrackRef.current = null;
+
+    if (screenTrack) {
+      screenTrack.onended = null;
+      if (screenTrack.readyState !== "ended") {
+        screenTrack.stop();
+      }
+    }
+
+    removeVideoTracksFromLocalStream();
+
+    const cameraTrack = cameraTrackRef.current;
+    const shouldRestoreCamera =
+      restoreCamera && isVideoEnabled && cameraTrack?.readyState === "live";
+
+    if (shouldRestoreCamera) {
+      const localStream = ensureLocalStreamContainer();
+      localStream.addTrack(cameraTrack);
+      await replaceVideoTrackForPeers(cameraTrack);
+      socketRef.current?.emit("toggle-video", {
+        roomId,
+        isVideoOff: false,
+      });
+    } else {
+      await replaceVideoTrackForPeers(null);
+      socketRef.current?.emit("toggle-video", {
+        roomId,
+        isVideoOff: true,
+      });
+    }
+
+    setIsScreenSharing(false);
+  };
+
   const teardownRoomConnection = useCallback((mode = "leave") => {
     if (socketRef.current) {
       socketRef.current.emit("leave-room", { roomId, mode });
@@ -305,7 +351,13 @@ export default function RoomPage() {
       localStreamRef.current = null;
     }
 
+    cameraTrackRef.current?.stop();
+    cameraTrackRef.current = null;
+    screenTrackRef.current?.stop();
+    screenTrackRef.current = null;
+
     setRemoteFeeds([]);
+    setIsScreenSharing(false);
   }, [roomId]);
 
   const exitRoom = useCallback(
@@ -378,6 +430,7 @@ export default function RoomPage() {
           track.enabled = Boolean(initialVideoEnabled);
         });
 
+        cameraTrackRef.current = stream.getVideoTracks()[0] || null;
         localStreamRef.current = stream;
         setIsAudioEnabled(stream.getAudioTracks().some((track) => track.enabled));
         setIsVideoEnabled(stream.getVideoTracks().some((track) => track.enabled));
@@ -651,11 +704,16 @@ export default function RoomPage() {
 
     try {
       if (isVideoEnabled) {
+        if (isScreenSharing) {
+          await stopScreenShare({ restoreCamera: false });
+        }
+
         localStream.getVideoTracks().forEach((track) => {
           track.stop();
           localStream.removeTrack(track);
         });
 
+        cameraTrackRef.current = null;
         await replaceVideoTrackForPeers(null);
         setIsVideoEnabled(false);
         socketRef.current?.emit("toggle-video", {
@@ -674,6 +732,7 @@ export default function RoomPage() {
       }
 
       localStream.addTrack(newVideoTrack);
+      cameraTrackRef.current = newVideoTrack;
       await replaceVideoTrackForPeers(newVideoTrack);
       setIsVideoEnabled(true);
       socketRef.current?.emit("toggle-video", {
@@ -683,6 +742,58 @@ export default function RoomPage() {
       setErrorMessage("");
     } catch (error) {
       setErrorMessage(error.message || "Unable to control your camera.");
+    }
+  };
+
+  const toggleScreenShare = async () => {
+    if (isScreenSharing) {
+      await stopScreenShare();
+      return;
+    }
+
+    if (!navigator.mediaDevices?.getDisplayMedia) {
+      setErrorMessage("Screen sharing is not supported in this browser.");
+      return;
+    }
+
+    try {
+      const displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: false,
+      });
+      const [screenTrack] = displayStream.getVideoTracks();
+
+      if (!screenTrack) {
+        throw new Error("Unable to start screen sharing.");
+      }
+
+      const localStream = ensureLocalStreamContainer();
+      const [activeCameraTrack] = localStream.getVideoTracks();
+
+      if (activeCameraTrack && activeCameraTrack !== screenTrack) {
+        cameraTrackRef.current = activeCameraTrack;
+      }
+
+      removeVideoTracksFromLocalStream();
+      localStream.addTrack(screenTrack);
+      screenTrackRef.current = screenTrack;
+      screenTrack.onended = () => {
+        void stopScreenShare();
+      };
+
+      await replaceVideoTrackForPeers(screenTrack);
+      setIsScreenSharing(true);
+      socketRef.current?.emit("toggle-video", {
+        roomId,
+        isVideoOff: false,
+      });
+      setErrorMessage("");
+    } catch (error) {
+      if (error.name === "NotAllowedError") {
+        setErrorMessage("Screen sharing permission was cancelled.");
+      } else {
+        setErrorMessage(error.message || "Unable to share your screen.");
+      }
     }
   };
 
@@ -743,10 +854,12 @@ export default function RoomPage() {
               localStream={localStreamRef.current}
               isAudioEnabled={isAudioEnabled}
               isVideoEnabled={isVideoEnabled}
+              isScreenSharing={isScreenSharing}
               selfSocketId={selfSocketId}
               remoteFeeds={remoteFeeds}
               onToggleAudio={toggleAudio}
               onToggleVideo={toggleVideo}
+              onToggleScreenShare={toggleScreenShare}
               onLeaveRoom={leaveRoom}
             />
           </div>

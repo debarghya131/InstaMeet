@@ -6,6 +6,12 @@ if (typeof process.loadEnvFile === "function") {
 }
 
 const PORT = process.env.PORT || 5000;
+const isProduction = process.env.NODE_ENV === "production";
+
+if (isProduction && !process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is required in production.");
+  process.exit(1);
+}
 
 const startServer = async () => {
   try {
@@ -19,6 +25,16 @@ const startServer = async () => {
     } else {
       console.log("MONGODB_URL not found. Server starting without database.");
     }
+
+    server.on("error", (error) => {
+      if (error.code === "EADDRINUSE") {
+        console.error(`Port ${PORT} is already in use. Set PORT to another value.`);
+      } else {
+        console.error("Server failed to start:", error.message);
+      }
+
+      process.exit(1);
+    });
 
     server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);

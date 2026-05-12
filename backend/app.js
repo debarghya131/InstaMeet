@@ -6,10 +6,11 @@ import usersRouter from "./routes/UsersRoutes.js";
 import setupSocket from "./controllers/SocketManager.js";
 
 const app = express();
+const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
 
 app.use(
   cors({
-    origin: "*",
+    origin: allowedOrigin,
   })
 );
 app.use(express.json());

@@ -139,9 +139,10 @@ const closeMeetingRoom = async (
 };
 
 const setupSocket = (server) => {
+  const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
   const io = new Server(server, {
     cors: {
-      origin: "*",
+      origin: allowedOrigin,
       methods: ["GET", "POST"],
     },
   });

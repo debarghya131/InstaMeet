@@ -6,7 +6,13 @@ import { closeMeetingRoom } from "./SocketManager.js";
 
 const TOKEN_EXPIRY_MS = 1000 * 60 * 60 * 24;
 
-const getJwtSecret = () => process.env.JWT_SECRET || "instameet-dev-secret";
+const getJwtSecret = () => {
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET is required.");
+  }
+
+  return process.env.JWT_SECRET;
+};
 
 const hashPassword = (password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -130,11 +136,11 @@ const getAuthenticatedUser = async (req) => {
   return user;
 };
 
-const sanitizeUser = (user) => ({
+const sanitizeUser = (user, { includeToken = false } = {}) => ({
   id: user._id,
   name: user.name,
   username: user.username,
-  token: user.token,
+  ...(includeToken ? { token: user.token } : {}),
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
 });
@@ -191,7 +197,7 @@ const registerUser = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "User registered successfully.",
-      data: sanitizeUser(user),
+      data: sanitizeUser(user, { includeToken: true }),
     });
   } catch (error) {
     return res.status(500).json({
@@ -228,7 +234,7 @@ const loginUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Login successful.",
-      data: sanitizeUser(user),
+      data: sanitizeUser(user, { includeToken: true }),
     });
   } catch (error) {
     return res.status(500).json({
@@ -272,7 +278,7 @@ const getCurrentUser = async (req, res) => {
     return res.status(200).json({
       success: true,
       message: "Authenticated user fetched successfully.",
-      data: sanitizeUser(user),
+      data: sanitizeUser(user, { includeToken: true }),
     });
   } catch (error) {
     return res.status(401).json({

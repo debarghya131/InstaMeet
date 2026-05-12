@@ -49,7 +49,11 @@ export default function LandingPage() {
 
           <section className="landing-content">
             <p className="landing-kicker">InstaMeet</p>
-            <h1>Meet, talk, and collaborate from anywhere.</h1>
+            <h1>
+              <span>Meet, talk, and</span>
+              <span>collaborate</span>
+              <span>from anywhere.</span>
+            </h1>
             <p className="landing-description">
               A simple video meeting experience for fast calls, team standups,
               and shared rooms.

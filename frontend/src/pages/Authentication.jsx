@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
 import { saveAuthenticatedSession } from "../utils/session";
-
-const API_BASE_URL = "http://localhost:5000/api/users";
+import { API_BASE_URL } from "../config";
 
 export default function AuthenticationPage() {
   const navigate = useNavigate();

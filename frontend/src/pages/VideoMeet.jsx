@@ -11,6 +11,7 @@ import {
   markGuestSession,
   resolveSessionContext,
 } from "../utils/session";
+import { API_BASE_URL } from "../config";
 
 const rtcConfiguration = {
   iceServers: [
@@ -19,8 +20,6 @@ const rtcConfiguration = {
     { urls: "stun:stun2.l.google.com:19302" },
   ],
 };
-const API_BASE_URL = "http://localhost:5000/api/users";
-
 export default function VideoMeetPage() {
   const navigate = useNavigate();
   const localVideoRef = useRef(null);

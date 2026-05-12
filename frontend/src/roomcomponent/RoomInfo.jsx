@@ -86,7 +86,7 @@ export default function RoomInfo({
         <div className="room-presence-list">
           {participants.map((participant) => {
             const isSelf = participant.socketId === selfSocketId;
-            const isHost = resolvedHostName && participant.userName === resolvedHostName;
+            const isHost = Boolean(participant.isHost);
 
             return (
               <div className="room-presence-item" key={participant.socketId}>

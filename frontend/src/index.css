@@ -8,8 +8,28 @@ body,
 body {
   min-height: 100vh;
   background: #071022;
+  font-family: "Charis SIL", Georgia, serif;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: "Stack Sans Text", "Charis SIL", sans-serif;
+  font-optical-sizing: auto;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
 }

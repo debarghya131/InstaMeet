@@ -3,10 +3,12 @@ export default function MeetingScreen({
   localStream,
   isAudioEnabled,
   isVideoEnabled,
+  isScreenSharing,
   selfSocketId,
   remoteFeeds,
   onToggleAudio,
   onToggleVideo,
+  onToggleScreenShare,
   onLeaveRoom,
 }) {
   const getInitials = (name) =>
@@ -25,9 +27,9 @@ export default function MeetingScreen({
     {
       socketId: "local",
       userName: `${userName} (You)`,
-      stream: isVideoEnabled ? localStream : null,
+      stream: isVideoEnabled || isScreenSharing ? localStream : null,
       isMuted: !isAudioEnabled,
-      isVideoOff: !isVideoEnabled,
+      isVideoOff: !isVideoEnabled && !isScreenSharing,
       isLocal: true,
     },
     ...filteredRemoteFeeds.map((feed) => ({
@@ -106,6 +108,21 @@ export default function MeetingScreen({
           </span>
           <span className="meeting-control-label">
             {isVideoEnabled ? "Stop Video" : "Start Video"}
+          </span>
+        </button>
+
+        <button
+          className={`meeting-control meeting-control-share ${
+            isScreenSharing ? "active" : "inactive"
+          }`}
+          onClick={onToggleScreenShare}
+          title={isScreenSharing ? "Stop screen sharing" : "Share your screen"}
+        >
+          <span className="meeting-control-icon">
+            <i className="fa-solid fa-display" aria-hidden="true" />
+          </span>
+          <span className="meeting-control-label">
+            {isScreenSharing ? "Stop Share" : "Share Screen"}
           </span>
         </button>
 
