@@ -198,6 +198,7 @@
 
 .landing-kicker {
   margin: 0 0 12px;
+  font-family: "Charis SIL", Georgia, serif;
   font-size: 0.95rem;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -2251,7 +2252,6 @@ h3,
 h4,
 h5,
 h6,
-.landing-kicker,
 .auth-kicker,
 .zoom-brand,
 .room-topbar-kicker,
