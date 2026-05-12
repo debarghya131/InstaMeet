@@ -134,7 +134,7 @@ export default function GuestPage() {
               onClick={handleJoinGuest}
               disabled={isLoading}
             >
-              {isLoading ? "Checking..." : "Join Meeting"}
+              {isLoading ? "Checking..." : "Join Guest Meeting"}
             </button>
             <button
               type="button"

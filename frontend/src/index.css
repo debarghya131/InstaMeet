@@ -3,6 +3,8 @@ body,
 #root {
   margin: 0;
   min-height: 100%;
+  width: 100%;
+  overflow-x: hidden;
 }
 
 body {
@@ -11,6 +13,13 @@ body {
   font-family: "Charis SIL", Georgia, serif;
   font-synthesis: none;
   text-rendering: optimizeLegibility;
+}
+
+img,
+video,
+canvas,
+svg {
+  max-width: 100%;
 }
 
 h1,
@@ -32,4 +41,12 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  touch-action: manipulation;
 }

@@ -178,8 +178,16 @@
   background: linear-gradient(135deg, #22c55e, #15803d);
 }
 
-.landing-content {
+.landing-hero-layout {
   flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 0.95fr) minmax(360px, 0.72fr);
+  align-items: center;
+  gap: clamp(28px, 5vw, 72px);
+  padding: 40px 0 30px;
+}
+
+.landing-content {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -254,6 +262,136 @@
   color: rgba(248, 250, 252, 0.9);
 }
 
+.landing-feature-card {
+  width: min(100%, 520px);
+  justify-self: end;
+  align-self: center;
+  padding: 18px;
+  border-radius: 28px;
+  border: 1px solid rgba(148, 163, 184, 0.24);
+  background:
+    radial-gradient(circle at top left, rgba(96, 165, 250, 0.18), transparent 30%),
+    rgba(15, 23, 42, 0.76);
+  box-shadow:
+    0 30px 70px rgba(2, 6, 23, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+}
+
+.landing-feature-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 6px;
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.4);
+}
+
+.landing-feature-tab {
+  border: none;
+  border-radius: 14px;
+  padding: 12px 14px;
+  color: rgba(226, 232, 240, 0.82);
+  background: transparent;
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+  transition:
+    transform 160ms ease,
+    background 160ms ease,
+    color 160ms ease;
+}
+
+.landing-feature-tab.active {
+  color: #eff6ff;
+  background: linear-gradient(135deg, #ff4da6, #2563eb);
+  box-shadow: 0 14px 28px rgba(37, 99, 235, 0.24);
+}
+
+.landing-feature-tab:hover {
+  transform: translateY(-1px);
+}
+
+.landing-feature-preview {
+  position: relative;
+  margin-top: 16px;
+}
+
+.landing-feature-slide {
+  margin: 0;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+  border-radius: 18px;
+  background: rgba(2, 6, 23, 0.76);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+}
+
+.landing-feature-slide img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: contain;
+}
+
+.landing-feature-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(191, 219, 254, 0.28);
+  border-radius: 999px;
+  color: #eff6ff;
+  background: rgba(2, 6, 23, 0.72);
+  box-shadow: 0 12px 24px rgba(2, 6, 23, 0.34);
+  cursor: pointer;
+  transform: translateY(-50%);
+  transition:
+    transform 160ms ease,
+    background 160ms ease;
+}
+
+.landing-feature-arrow:hover {
+  background: rgba(37, 99, 235, 0.78);
+  transform: translateY(-50%) scale(1.04);
+}
+
+.landing-feature-arrow-left {
+  left: 10px;
+}
+
+.landing-feature-arrow-right {
+  right: 10px;
+}
+
+.landing-feature-dots {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.landing-feature-dot {
+  width: 9px;
+  height: 9px;
+  border: none;
+  border-radius: 999px;
+  padding: 0;
+  background: rgba(226, 232, 240, 0.36);
+  cursor: pointer;
+  transition:
+    width 160ms ease,
+    background 160ms ease;
+}
+
+.landing-feature-dot.active {
+  width: 24px;
+  background: #ff4da6;
+}
+
 @media (max-width: 768px) {
   .landing-overlay {
     padding: 32px 12px 40px;
@@ -261,6 +399,12 @@
 
   .landing-shell {
     min-height: calc(100vh - 72px);
+  }
+
+  .landing-hero-layout {
+    grid-template-columns: 1fr;
+    gap: 28px;
+    padding-top: 32px;
   }
 
   .landing-navbar {
@@ -287,6 +431,15 @@
 
   .landing-content h1 {
     line-height: 1.05;
+  }
+
+  .landing-feature-card {
+    width: 100%;
+    justify-self: stretch;
+  }
+
+  .landing-feature-slide {
+    aspect-ratio: 16 / 12;
   }
 
   .landing-credit {
@@ -814,7 +967,10 @@
 
 .room-sidebar {
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 18px;
+  height: 100%;
+  min-height: 0;
 }
 
 .room-panel {
@@ -1318,6 +1474,15 @@
   display: grid;
   gap: 12px;
   margin-top: 6px;
+  min-height: 0;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.room-presence-card {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .room-presence-item {
@@ -1826,6 +1991,7 @@
 .video-meet-grid {
   display: grid;
   grid-template-columns: 1.25fr 0.9fr;
+  align-items: start;
   gap: 22px;
 }
 
@@ -1845,6 +2011,10 @@
   background:
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.12), transparent 24%),
     rgba(15, 23, 42, 0.8);
+}
+
+.video-status-panel {
+  transform: translateY(-165px);
 }
 
 .video-stage-header {
@@ -2055,6 +2225,10 @@
     grid-template-columns: 1fr;
   }
 
+  .video-status-panel {
+    transform: none;
+  }
+
   .video-preview {
     min-height: 280px;
   }
@@ -2095,4 +2269,483 @@ h6,
 .video-server-box h3 {
   font-family: "Stack Sans Text", "Charis SIL", sans-serif;
   font-optical-sizing: auto;
+}
+
+/* Responsive foundation: mobile-first overrides layered after legacy styles. */
+.landing-page,
+.auth-page,
+.guest-page,
+.video-meet-page,
+.room-page,
+.zoom-room {
+  overflow-x: hidden;
+}
+
+.landing-overlay,
+.auth-page,
+.guest-page,
+.video-meet-page,
+.room-page {
+  padding-inline: clamp(1rem, 4vw, 2rem);
+}
+
+.landing-shell,
+.guest-shell,
+.video-meet-shell,
+.room-shell {
+  width: min(100%, 82rem);
+}
+
+.landing-navbar,
+.guest-topbar,
+.video-meet-topbar,
+.room-topbar,
+.video-stage-header,
+.zoom-topbar,
+.zoom-chat-header {
+  min-width: 0;
+}
+
+.nav-button,
+.hero-button,
+.auth-submit,
+.guest-button,
+.guest-back,
+.video-room-submit,
+.video-meet-back,
+.room-back,
+.zoom-tab,
+.zoom-chat-send {
+  min-height: 3rem;
+}
+
+.landing-actions,
+.video-room-form-row,
+.guest-form-row,
+.video-controls,
+.meeting-controls {
+  min-width: 0;
+}
+
+.landing-hero-actions {
+  margin-left: 0;
+  margin-top: 1.5rem;
+}
+
+.landing-credit {
+  position: static;
+  margin-top: 1.25rem;
+}
+
+.brand-logo {
+  width: clamp(13rem, 70vw, 22.5rem);
+  height: auto;
+  aspect-ratio: 10 / 3;
+}
+
+.landing-navbar {
+  flex-wrap: wrap;
+  border-radius: clamp(1.25rem, 5vw, 2.25rem);
+}
+
+.landing-brand {
+  max-width: 100%;
+}
+
+.landing-actions {
+  width: 100%;
+  margin-left: 0;
+  flex-wrap: wrap;
+  border-radius: 1.25rem;
+}
+
+.landing-actions .nav-button {
+  flex: 1 1 9rem;
+}
+
+.landing-hero-layout,
+.video-meet-grid,
+.room-topbar,
+.room-stage {
+  grid-template-columns: 1fr;
+}
+
+.landing-hero-layout {
+  padding-block: clamp(2rem, 8vw, 4rem);
+}
+
+.landing-content h1 {
+  font-size: clamp(2.35rem, 13vw, 4.6rem);
+  max-width: 100%;
+}
+
+.landing-description {
+  max-width: 46rem;
+}
+
+.landing-feature-card {
+  width: 100%;
+  justify-self: stretch;
+  padding: clamp(0.9rem, 4vw, 1.125rem);
+}
+
+.landing-feature-tabs {
+  grid-template-columns: 1fr;
+}
+
+.landing-feature-slide {
+  aspect-ratio: 16 / 12;
+}
+
+.auth-card,
+.guest-card,
+.video-stage,
+.video-panel,
+.room-panel,
+.zoom-chat-panel {
+  border-radius: clamp(1.125rem, 5vw, 1.75rem);
+}
+
+.auth-card {
+  padding: clamp(1.25rem, 5vw, 2rem);
+}
+
+.auth-links,
+.guest-topbar,
+.video-meet-topbar,
+.video-stage-header,
+.zoom-topbar,
+.zoom-topbar-right {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.auth-links {
+  align-items: flex-start;
+}
+
+.guest-input,
+.guest-button,
+.guest-back,
+.video-room-input,
+.video-room-submit,
+.video-meet-back,
+.video-control-button {
+  width: 100%;
+}
+
+.guest-form-row,
+.video-room-form-row {
+  flex-direction: column;
+}
+
+.video-status-panel {
+  transform: none;
+}
+
+.video-preview {
+  min-height: 0;
+  aspect-ratio: 16 / 10;
+}
+
+.zoom-room {
+  height: auto;
+  min-height: 100svh;
+  overflow-y: auto;
+  width: 100%;
+}
+
+.zoom-frame {
+  grid-template-columns: 1fr;
+  height: auto;
+  min-height: 100svh;
+  overflow: visible;
+  width: 100%;
+  max-width: 100%;
+}
+
+.zoom-main,
+.zoom-side {
+  min-height: 0;
+}
+
+.zoom-stage,
+.zoom-side-body {
+  overflow: visible;
+  padding: 1rem;
+}
+
+.zoom-side {
+  border-left: none;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+}
+
+.meeting-stage {
+  height: auto;
+  min-height: min(34rem, 70svh);
+  padding: 0.75rem;
+  padding-bottom: 0.75rem;
+}
+
+.meeting-grid {
+  grid-template-columns: 1fr;
+  height: auto;
+  max-height: none;
+}
+
+.meeting-tile {
+  min-height: clamp(13rem, 52vw, 18rem);
+}
+
+.meeting-controls {
+  position: static;
+  left: auto;
+  bottom: auto;
+  transform: none;
+  z-index: auto;
+  width: min(calc(100% - 1rem), 34rem);
+  margin: 0.75rem auto 0;
+  padding: 0.6rem;
+  gap: 0.45rem;
+}
+
+.meeting-control {
+  min-width: 4.25rem;
+  flex: 1 1 4.25rem;
+  padding: 0.35rem;
+}
+
+.meeting-control-icon {
+  width: 3rem;
+  height: 3rem;
+}
+
+.meeting-control-label {
+  font-size: 0.62rem;
+  letter-spacing: 0.06em;
+}
+
+.room-sidebar {
+  height: auto;
+}
+
+.room-detail-item {
+  grid-template-columns: 1fr;
+}
+
+.room-detail-text,
+.room-detail-copy-group {
+  text-align: left;
+  justify-content: flex-start;
+}
+
+.room-presence-list {
+  max-height: min(22rem, 55svh);
+}
+
+.zoom-chat-panel {
+  height: min(32rem, 70svh);
+}
+
+.zoom-chat-form {
+  grid-template-columns: 1fr;
+}
+
+.zoom-chat-send {
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .landing-actions {
+    border-radius: 999px;
+  }
+
+  .landing-feature-tabs {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .guest-topbar,
+  .video-meet-topbar,
+  .video-stage-header,
+  .zoom-topbar,
+  .zoom-topbar-right {
+    flex-direction: row;
+    align-items: center;
+  }
+
+  .guest-input,
+  .video-room-input {
+    width: auto;
+  }
+
+  .guest-button,
+  .guest-back,
+  .video-room-submit,
+  .video-meet-back,
+  .video-control-button {
+    width: auto;
+  }
+
+  .guest-form-row,
+  .video-room-form-row {
+    flex-direction: row;
+  }
+
+  .video-meet-grid,
+  .room-topbar,
+  .room-stage {
+    grid-template-columns: 1fr;
+  }
+
+  .meeting-grid {
+    grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr));
+  }
+
+  .meeting-controls {
+    width: auto;
+    padding: 0.75rem 1rem;
+    gap: 0.625rem;
+  }
+
+  .meeting-control {
+    min-width: 5.25rem;
+  }
+
+  .meeting-control-icon {
+    width: 3.5rem;
+    height: 3.5rem;
+  }
+
+  .zoom-chat-form {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .zoom-chat-send {
+    width: auto;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-overlay {
+    padding-top: 1rem;
+  }
+
+  .landing-shell {
+    min-height: calc(100vh - 2rem);
+  }
+
+  .landing-navbar {
+    gap: 1.25rem;
+    padding: 0.75rem 0.95rem;
+    border-radius: 1.65rem;
+  }
+
+  .landing-brand {
+    padding: 0.8rem 1.2rem;
+    border-radius: 1.45rem;
+  }
+
+  .brand-logo {
+    width: clamp(13rem, 24vw, 18rem);
+    aspect-ratio: 10 / 3;
+  }
+
+  .landing-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: auto;
+    min-width: 0;
+    margin-left: auto;
+    padding: 0.5rem;
+    border-radius: 999px;
+  }
+
+  .landing-actions.open {
+    display: flex;
+  }
+
+  .landing-actions .nav-button {
+    width: auto;
+    min-height: 2.4rem;
+    flex: 0 0 auto;
+    padding: 0.6rem 1.15rem;
+    font-size: 0.82rem;
+  }
+
+  .landing-hero-layout {
+    grid-template-columns: minmax(0, 0.95fr) minmax(22rem, 0.72fr);
+  }
+
+  .landing-feature-card {
+    width: min(100%, 32.5rem);
+    justify-self: end;
+  }
+
+  .landing-feature-slide {
+    aspect-ratio: 16 / 11;
+  }
+
+  .landing-credit {
+    position: fixed;
+    right: 1.875rem;
+    bottom: 2.25rem;
+  }
+
+  .video-meet-grid {
+    grid-template-columns: minmax(0, 1.25fr) minmax(20rem, 0.9fr);
+  }
+
+  .video-status-panel {
+    transform: translateY(-8rem);
+  }
+
+  .room-topbar {
+    grid-template-columns: minmax(0, 1.6fr) minmax(16rem, 0.7fr);
+  }
+
+  .room-stage {
+    grid-template-columns: minmax(0, 2.2fr) minmax(18rem, 1fr);
+  }
+
+  .zoom-room {
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  .zoom-frame {
+    grid-template-columns: minmax(0, 1fr) minmax(17.5rem, 21.25rem);
+    height: 100vh;
+    min-height: 100vh;
+    overflow: hidden;
+  }
+
+  .zoom-stage,
+  .zoom-side-body {
+    overflow: hidden;
+  }
+
+  .meeting-stage {
+    height: 100%;
+    min-height: 0;
+    padding-bottom: 7rem;
+  }
+
+  .meeting-grid {
+    height: 100%;
+  }
+
+  .zoom-chat-panel {
+    height: 100%;
+  }
+
+  .meeting-controls {
+    position: fixed;
+    left: 50%;
+    bottom: max(1.125rem, env(safe-area-inset-bottom));
+    transform: translateX(-50%);
+    z-index: 50;
+    width: auto;
+    margin: 0;
+  }
 }

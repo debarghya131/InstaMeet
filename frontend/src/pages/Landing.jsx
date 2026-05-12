@@ -1,13 +1,45 @@
-import React from "react";
+import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import "../App.css";
 import logo from "../assets/logo.svg";
 
+const featureImages = Array.from({ length: 11 }, (_, index) => ({
+  src: new URL(`../assets/img${index + 1}.png`, import.meta.url).href,
+  label: `Feature ${index + 1}`,
+}));
+
+const guestFeatureImages = Array.from({ length: 5 }, (_, index) => ({
+  src: new URL(`../assets/guestimg${index + 1}.png`, import.meta.url).href,
+  label: `Guest Feature ${index + 1}`,
+}));
+
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [activeFeatureTab, setActiveFeatureTab] = useState("features");
+  const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
+  const activeImages =
+    activeFeatureTab === "features" ? featureImages : guestFeatureImages;
+  const activeFeatureImage = activeImages[activeFeatureIndex] || activeImages[0];
 
   const handleStartFlow = () => {
     navigate("/authentication?mode=signup&redirect=/video-meet");
+  };
+
+  const handleFeatureTabChange = (nextTab) => {
+    setActiveFeatureTab(nextTab);
+    setActiveFeatureIndex(0);
+  };
+
+  const showPreviousFeature = () => {
+    setActiveFeatureIndex((currentIndex) =>
+      currentIndex === 0 ? activeImages.length - 1 : currentIndex - 1
+    );
+  };
+
+  const showNextFeature = () => {
+    setActiveFeatureIndex((currentIndex) =>
+      currentIndex === activeImages.length - 1 ? 0 : currentIndex + 1
+    );
   };
 
   return (
@@ -47,24 +79,85 @@ export default function LandingPage() {
             </div>
           </header>
 
-          <section className="landing-content">
-            <p className="landing-kicker">InstaMeet</p>
-            <h1>
-              <span>Meet, talk, and</span>
-              <span>collaborate</span>
-              <span>from anywhere.</span>
-            </h1>
-            <p className="landing-description">
-              A simple video meeting experience for fast calls, team standups,
-              and shared rooms.
-            </p>
-            <div className="landing-hero-actions">
-              <button className="hero-button" onClick={handleStartFlow}>
-                Get Started
-              </button>
-            </div>
-            <p className="landing-credit">by Debarghya ❤️</p>
-          </section>
+          <div className="landing-hero-layout">
+            <section className="landing-content">
+              <p className="landing-kicker">InstaMeet</p>
+              <h1>
+                <span>Meet, talk, and</span>
+                <span>collaborate</span>
+                <span>from anywhere.</span>
+              </h1>
+              <p className="landing-description">
+                A simple video meeting experience for fast calls, team standups,
+                and shared rooms.
+              </p>
+              <div className="landing-hero-actions">
+                <button className="hero-button" onClick={handleStartFlow}>
+                  Get Started
+                </button>
+              </div>
+              <p className="landing-credit">by Debarghya ❤️</p>
+            </section>
+
+            <aside className="landing-feature-card">
+              <div className="landing-feature-tabs">
+                <button
+                  type="button"
+                  className={`landing-feature-tab ${
+                    activeFeatureTab === "features" ? "active" : ""
+                  }`}
+                  onClick={() => handleFeatureTabChange("features")}
+                >
+                  Features
+                </button>
+                <button
+                  type="button"
+                  className={`landing-feature-tab ${
+                    activeFeatureTab === "guest" ? "active" : ""
+                  }`}
+                  onClick={() => handleFeatureTabChange("guest")}
+                >
+                  Guest Features
+                </button>
+              </div>
+
+              <div className="landing-feature-preview">
+                <button
+                  type="button"
+                  className="landing-feature-arrow landing-feature-arrow-left"
+                  onClick={showPreviousFeature}
+                  aria-label="Show previous feature"
+                >
+                  <i className="fa-solid fa-chevron-left" aria-hidden="true" />
+                </button>
+                <figure className="landing-feature-slide">
+                  <img src={activeFeatureImage.src} alt={activeFeatureImage.label} />
+                </figure>
+                <button
+                  type="button"
+                  className="landing-feature-arrow landing-feature-arrow-right"
+                  onClick={showNextFeature}
+                  aria-label="Show next feature"
+                >
+                  <i className="fa-solid fa-chevron-right" aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="landing-feature-dots" aria-label="Feature previews">
+                {activeImages.map((image, index) => (
+                  <button
+                    type="button"
+                    key={image.src}
+                    className={`landing-feature-dot ${
+                      index === activeFeatureIndex ? "active" : ""
+                    }`}
+                    onClick={() => setActiveFeatureIndex(index)}
+                    aria-label={`Show ${image.label}`}
+                  />
+                ))}
+              </div>
+            </aside>
+          </div>
         </div>
       </div>
     </main>
