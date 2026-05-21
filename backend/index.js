@@ -1,7 +1,8 @@
+import fs from "fs";
 import mongoose from "mongoose";
 import { server } from "./app.js";
 
-if (typeof process.loadEnvFile === "function") {
+if (typeof process.loadEnvFile === "function" && fs.existsSync("./.env")) {
   process.loadEnvFile("./.env");
 }
 
