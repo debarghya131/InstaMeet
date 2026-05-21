@@ -14,7 +14,6 @@ export default function AuthenticationPage() {
     name: "",
     username: "",
     password: "",
-    confirmPassword: "",
   });
   const [status, setStatus] = useState({
     loading: false,
@@ -55,10 +54,6 @@ export default function AuthenticationPage() {
     });
 
     try {
-      if (!isLogin && formValues.password !== formValues.confirmPassword) {
-        throw new Error("Password and confirm password must match.");
-      }
-
       const endpoint = isLogin ? "login" : "register";
       const payload = isLogin
         ? {
@@ -98,7 +93,6 @@ export default function AuthenticationPage() {
           name: "",
           username: "",
           password: "",
-          confirmPassword: "",
         });
 
         window.setTimeout(() => {
@@ -115,7 +109,6 @@ export default function AuthenticationPage() {
           name: "",
           username: formValues.username,
           password: "",
-          confirmPassword: "",
         });
 
         setMode("login");
@@ -199,19 +192,6 @@ export default function AuthenticationPage() {
               }
             />
           </label>
-
-          {!isLogin && (
-            <label className="auth-field">
-              <span>Confirm Password</span>
-              <input
-                type="password"
-                name="confirmPassword"
-                value={formValues.confirmPassword}
-                onChange={handleChange}
-                placeholder="Confirm your password"
-              />
-            </label>
-          )}
 
           {status.error ? (
             <p className="auth-message auth-message-error">{status.error}</p>

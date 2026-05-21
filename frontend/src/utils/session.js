@@ -6,6 +6,7 @@ const AUTH_TOKEN_KEY = "instameet_token";
 const LEGACY_ROLE_KEY = "instameet_role";
 const SESSION_TYPE_KEY = "instameet_session_type";
 const GUEST_FLAG_KEY = "instameet_guest";
+const GUEST_NAME_KEY = "instameet_guest_name";
 const SETUP_PATH_KEY = "instameet_setup_path";
 const PENDING_HOST_ROOM_KEY = "instameet_pending_host_room";
 
@@ -83,7 +84,7 @@ export const resolveSessionContext = (locationState = {}) => {
   const userName =
     locationState?.userName ||
     (isGuestUser
-      ? "Guest User"
+      ? sessionStorage?.getItem(GUEST_NAME_KEY) || "Guest User"
       : savedUser?.name || savedUser?.username || "User");
   const userId = isGuestUser ? "" : locationState?.userId || savedUserId || "";
 
@@ -98,7 +99,7 @@ export const resolveSessionContext = (locationState = {}) => {
   };
 };
 
-export const markGuestSession = () => {
+export const markGuestSession = (guestName = "") => {
   const sessionStorage = getSessionStorage();
 
   if (!sessionStorage) {
@@ -109,6 +110,12 @@ export const markGuestSession = () => {
   sessionStorage.removeItem(AUTH_TOKEN_KEY);
   sessionStorage.setItem(SESSION_TYPE_KEY, "guest");
   sessionStorage.setItem(GUEST_FLAG_KEY, "true");
+  const normalizedGuestName = guestName.trim();
+  if (normalizedGuestName) {
+    sessionStorage.setItem(GUEST_NAME_KEY, normalizedGuestName);
+  } else {
+    sessionStorage.removeItem(GUEST_NAME_KEY);
+  }
   sessionStorage.setItem(SETUP_PATH_KEY, GUEST_SETUP_PATH);
   clearLegacySharedAuth();
 };
@@ -128,6 +135,7 @@ export const saveAuthenticatedSession = (authData) => {
   }
   sessionStorage.setItem(SESSION_TYPE_KEY, "user");
   sessionStorage.removeItem(GUEST_FLAG_KEY);
+  sessionStorage.removeItem(GUEST_NAME_KEY);
   sessionStorage.setItem(SETUP_PATH_KEY, AUTH_SETUP_PATH);
   clearLegacySharedAuth();
 };
@@ -141,6 +149,7 @@ export const markAuthenticatedSession = () => {
 
   sessionStorage.setItem(SESSION_TYPE_KEY, "user");
   sessionStorage.removeItem(GUEST_FLAG_KEY);
+  sessionStorage.removeItem(GUEST_NAME_KEY);
   sessionStorage.setItem(SETUP_PATH_KEY, AUTH_SETUP_PATH);
   clearLegacySharedAuth();
 };
@@ -154,6 +163,7 @@ export const clearSessionRoutingState = () => {
 
   sessionStorage.removeItem(SESSION_TYPE_KEY);
   sessionStorage.removeItem(GUEST_FLAG_KEY);
+  sessionStorage.removeItem(GUEST_NAME_KEY);
   sessionStorage.removeItem(SETUP_PATH_KEY);
   sessionStorage.removeItem(PENDING_HOST_ROOM_KEY);
 };

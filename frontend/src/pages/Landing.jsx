@@ -15,6 +15,7 @@ const guestFeatureImages = Array.from({ length: 5 }, (_, index) => ({
 
 export default function LandingPage() {
   const navigate = useNavigate();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [activeFeatureTab, setActiveFeatureTab] = useState("features");
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
   const activeImages =
@@ -22,6 +23,7 @@ export default function LandingPage() {
   const activeFeatureImage = activeImages[activeFeatureIndex] || activeImages[0];
 
   const handleStartFlow = () => {
+    setIsMobileMenuOpen(false);
     navigate("/authentication?mode=signup&redirect=/video-meet");
   };
 
@@ -51,22 +53,43 @@ export default function LandingPage() {
               <img className="brand-logo" src={logo} alt="InstaMeet logo" />
             </Link>
 
-            <div className="landing-actions">
+            <button
+              type="button"
+              className={`landing-menu-toggle ${isMobileMenuOpen ? "open" : ""}`}
+              aria-label={isMobileMenuOpen ? "Close navigation menu" : "Open navigation menu"}
+              aria-expanded={isMobileMenuOpen}
+              aria-controls="landing-actions"
+              onClick={() => setIsMobileMenuOpen((currentValue) => !currentValue)}
+            >
+              <span className="landing-menu-toggle-bars" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+
+            <div
+              id="landing-actions"
+              className={`landing-actions ${isMobileMenuOpen ? "open" : ""}`}
+            >
               <Link
                 className="nav-button nav-button-success nav-link-button"
                 to="/authentication?mode=login"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 Login
               </Link>
               <Link
                 className="nav-button nav-button-register nav-link-button"
                 to="/authentication?mode=signup"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 Register
               </Link>
               <Link
                 className="nav-button nav-button-accent nav-link-button"
                 to="/guest"
+                onClick={() => setIsMobileMenuOpen(false)}
               >
                 Join as Guest
               </Link>
@@ -95,6 +118,9 @@ export default function LandingPage() {
                 <button className="hero-button" onClick={handleStartFlow}>
                   Get Started
                 </button>
+                <Link className="hero-button hero-button-guest" to="/guest">
+                  Join as Guest
+                </Link>
               </div>
               <p className="landing-credit">by Debarghya ❤️</p>
             </section>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
+import Toast from "../components/Toast";
 import {
   AUTH_SETUP_PATH,
   GUEST_SETUP_PATH,
@@ -52,6 +53,20 @@ export default function VideoMeetPage() {
     savedMediaPrefs?.videoEnabled === undefined ? true : savedMediaPrefs.videoEnabled;
 
   useEffect(() => {
+    if (!errorMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setErrorMessage("");
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [errorMessage]);
+
+  useEffect(() => {
     if (isGuestUser) {
       markGuestSession();
       navigate(GUEST_SETUP_PATH, { replace: true });
@@ -89,7 +104,7 @@ export default function VideoMeetPage() {
 
     const result = await response.json();
 
-    if (!response.ok && response.status !== 404) {
+    if (!response.ok && response.status !== 404 && response.status !== 401) {
       throw new Error(result.message || "Unable to end previous hosted meeting.");
     }
 
@@ -458,6 +473,7 @@ export default function VideoMeetPage() {
 
   return (
     <main className="video-meet-page">
+      <Toast message={errorMessage} />
       <section className="video-meet-shell">
         <div className="video-meet-topbar">
           <div>
@@ -574,10 +590,6 @@ export default function VideoMeetPage() {
                 <span>Camera:</span> {isVideoEnabled ? "On" : "Off"}
               </p>
             </div>
-
-            {errorMessage ? (
-              <p className="video-error-message">{errorMessage}</p>
-            ) : null}
 
             <div className="video-server-box">
               <h3>Room Summary</h3>

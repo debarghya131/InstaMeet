@@ -5,6 +5,7 @@ import { io } from "socket.io-client";
 import MeetingScreen from "./MeetingScreen";
 import RoomChat from "./RoomChat";
 import RoomInfo from "./RoomInfo";
+import RoomPresence from "./RoomPresence";
 import {
   clearAuthenticatedSession,
   clearPendingHostRoom,
@@ -32,6 +33,7 @@ export default function RoomPage() {
   const cameraTrackRef = useRef(null);
   const screenTrackRef = useRef(null);
   const peerConnectionsRef = useRef(new Map());
+  const pendingIceCandidatesRef = useRef(new Map());
   const pendingOffersRef = useRef(new Set());
   const exitInProgressRef = useRef(false);
   const exitContextRef = useRef({
@@ -55,6 +57,7 @@ export default function RoomPage() {
   const [isSocketConnected, setIsSocketConnected] = useState(false);
   const [activePanel, setActivePanel] = useState("chat");
   const [hostName, setHostName] = useState("");
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const savedMediaPrefs =
     typeof window !== "undefined"
       ? JSON.parse(localStorage.getItem("instameet_media_prefs") || "null")
@@ -121,6 +124,49 @@ export default function RoomPage() {
     );
   };
 
+  const mergeRemoteTrack = (socketId, track, userName = "Participant") => {
+    setRemoteFeeds((currentFeeds) => {
+      const existingFeed = currentFeeds.find((feed) => feed.socketId === socketId);
+      const nextStream = existingFeed?.stream || new MediaStream();
+
+      const duplicateTrack = nextStream
+        .getTracks()
+        .find((candidate) => candidate.id === track.id);
+
+      if (!duplicateTrack) {
+        nextStream
+          .getTracks()
+          .filter((candidate) => candidate.kind === track.kind)
+          .forEach((candidate) => {
+            nextStream.removeTrack(candidate);
+          });
+
+        nextStream.addTrack(track);
+      }
+
+      if (!existingFeed) {
+        return [
+          ...currentFeeds,
+          {
+            socketId,
+            userName,
+            stream: nextStream,
+          },
+        ];
+      }
+
+      return currentFeeds.map((feed) =>
+        feed.socketId === socketId
+          ? {
+              ...feed,
+              userName: feed.userName || userName,
+              stream: nextStream,
+            }
+          : feed
+      );
+    });
+  };
+
   const ensureLocalStreamContainer = () => {
     if (!localStreamRef.current) {
       localStreamRef.current = new MediaStream();
@@ -141,7 +187,31 @@ export default function RoomPage() {
     }
 
     pendingOffersRef.current.delete(socketId);
+    pendingIceCandidatesRef.current.delete(socketId);
     removeRemoteFeed(socketId);
+  }, []);
+
+  const queueIceCandidate = (socketId, candidate) => {
+    const currentQueue = pendingIceCandidatesRef.current.get(socketId) || [];
+    pendingIceCandidatesRef.current.set(socketId, [...currentQueue, candidate]);
+  };
+
+  const flushQueuedIceCandidates = useCallback(async (socketId, peerConnection) => {
+    const queuedCandidates = pendingIceCandidatesRef.current.get(socketId);
+
+    if (!queuedCandidates?.length) {
+      return;
+    }
+
+    pendingIceCandidatesRef.current.delete(socketId);
+
+    for (const candidate of queuedCandidates) {
+      try {
+        await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (error) {
+        setErrorMessage(error.message || "Unable to process room signal.");
+      }
+    }
   }, []);
 
   const ensurePeerConnection = useCallback((targetSocketId, targetName = "Participant") => {
@@ -178,14 +248,13 @@ export default function RoomPage() {
     };
 
     peerConnection.ontrack = (event) => {
-      const [stream] = event.streams;
+      const incomingTrack = event.track;
 
-      if (stream) {
-        upsertRemoteFeed(targetSocketId, {
-          userName: targetName,
-          stream,
-        });
+      if (!incomingTrack) {
+        return;
       }
+
+      mergeRemoteTrack(targetSocketId, incomingTrack, targetName);
     };
 
     peerConnection.onconnectionstatechange = () => {
@@ -207,7 +276,7 @@ export default function RoomPage() {
       participant.userName
     );
 
-    if (peerConnection.localDescription) {
+    if (peerConnection.signalingState !== "stable") {
       return;
     }
 
@@ -261,13 +330,19 @@ export default function RoomPage() {
   }, [cleanupPeerConnection, createOfferForParticipant]);
 
   const replaceTrackForPeers = async (kind, nextTrack) => {
-    const peerConnections = Array.from(peerConnectionsRef.current.values());
+    const peerConnections = Array.from(peerConnectionsRef.current.entries());
+    const peersNeedingRenegotiation = [];
 
     await Promise.allSettled(
-      peerConnections.map(async (peerConnection) => {
-        const sender = peerConnection
-          .getSenders()
-          .find((candidate) => candidate.track?.kind === kind);
+      peerConnections.map(async ([socketId, peerConnection]) => {
+        const transceiver = peerConnection
+          .getTransceivers()
+          .find(
+            (candidate) =>
+              candidate.sender?.track?.kind === kind ||
+              candidate.receiver?.track?.kind === kind
+          );
+        const sender = transceiver?.sender;
 
         if (sender) {
           await sender.replaceTrack(nextTrack);
@@ -276,7 +351,25 @@ export default function RoomPage() {
 
         if (nextTrack && localStreamRef.current) {
           peerConnection.addTrack(nextTrack, localStreamRef.current);
+          peersNeedingRenegotiation.push(socketId);
         }
+      })
+    );
+
+    await Promise.allSettled(
+      peersNeedingRenegotiation.map(async (socketId) => {
+        const participant =
+          participants.find((candidate) => candidate.socketId === socketId) ||
+          remoteFeeds.find((candidate) => candidate.socketId === socketId);
+
+        if (!participant) {
+          return;
+        }
+
+        await createOfferForParticipant({
+          socketId,
+          userName: participant.userName || "Participant",
+        });
       })
     );
   };
@@ -344,6 +437,7 @@ export default function RoomPage() {
       peerConnection.close();
     });
     peerConnectionsRef.current.clear();
+    pendingIceCandidatesRef.current.clear();
     pendingOffersRef.current.clear();
 
     if (localStreamRef.current) {
@@ -412,10 +506,44 @@ export default function RoomPage() {
               : new MediaStream();
         } catch {
           stream = new MediaStream();
-          setErrorMessage(
-            "Camera and microphone access failed. Joined with media off."
-          );
-          setStatusMessage("Joining room without camera and microphone...");
+
+          if (mediaConstraints.audio) {
+            try {
+              const audioOnlyStream = await navigator.mediaDevices.getUserMedia({
+                audio: true,
+              });
+              audioOnlyStream.getAudioTracks().forEach((track) => {
+                stream.addTrack(track);
+              });
+            } catch {
+              // Fall through and continue without audio.
+            }
+          }
+
+          if (mediaConstraints.video) {
+            try {
+              const videoOnlyStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+              });
+              videoOnlyStream.getVideoTracks().forEach((track) => {
+                stream.addTrack(track);
+              });
+            } catch {
+              // Fall through and continue without video.
+            }
+          }
+
+          if (stream.getTracks().length > 0) {
+            setErrorMessage(
+              "Some media permissions were denied. Joined with available devices only."
+            );
+            setStatusMessage("Joining room with limited media access...");
+          } else {
+            setErrorMessage(
+              "Camera and microphone access failed. Joined with media off."
+            );
+            setStatusMessage("Joining room without camera and microphone...");
+          }
         }
 
         if (isCancelled) {
@@ -506,6 +634,7 @@ export default function RoomPage() {
               await peerConnection.setRemoteDescription(
                 new RTCSessionDescription(signal.sdp)
               );
+              await flushQueuedIceCandidates(fromSocketId, peerConnection);
 
               const answer = await peerConnection.createAnswer();
               await peerConnection.setLocalDescription(answer);
@@ -525,12 +654,17 @@ export default function RoomPage() {
               await peerConnection.setRemoteDescription(
                 new RTCSessionDescription(signal.sdp)
               );
+              await flushQueuedIceCandidates(fromSocketId, peerConnection);
             }
 
             if (signal.type === "ice-candidate" && signal.candidate) {
-              await peerConnection.addIceCandidate(
-                new RTCIceCandidate(signal.candidate)
-              );
+              if (!peerConnection.remoteDescription?.type) {
+                queueIceCandidate(fromSocketId, signal.candidate);
+              } else {
+                await peerConnection.addIceCandidate(
+                  new RTCIceCandidate(signal.candidate)
+                );
+              }
             }
           } catch (error) {
             setErrorMessage(error.message || "Unable to process room signal.");
@@ -607,6 +741,7 @@ export default function RoomPage() {
     syncRoomUsers,
     ensurePeerConnection,
     cleanupPeerConnection,
+    flushQueuedIceCandidates,
     exitRoom,
     teardownRoomConnection,
   ]);
@@ -801,6 +936,10 @@ export default function RoomPage() {
     exitRoom("setup");
   };
 
+  const handlePanelChange = (panelName) => {
+    setActivePanel(panelName);
+  };
+
   const sendMessage = (messageText) => {
     const nextMessage = {
       roomId,
@@ -840,11 +979,88 @@ export default function RoomPage() {
               <span className="zoom-brand">InstaMeet</span>
               <span className="zoom-room-chip">Room {roomId}</span>
             </div>
+            <div className="zoom-topbar-middle">
+              <span className="zoom-made-with">Made With ♥️ Debarghya</span>
+            </div>
             <div className="zoom-topbar-right">
               <span className="zoom-status">{statusMessage}</span>
               <span className="zoom-pill">{participantCountLabel}</span>
             </div>
           </header>
+
+          <div className="zoom-mobile-controls">
+            <button
+              type="button"
+              className={`meeting-control ${isAudioEnabled ? "active" : "inactive"}`}
+              onClick={toggleAudio}
+              title={isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
+            >
+              <span className="meeting-control-icon">
+                <i className="fa-solid fa-microphone" aria-hidden="true" />
+              </span>
+              <span className="meeting-control-label">
+                {isAudioEnabled ? "Mute" : "Unmute"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`meeting-control ${isVideoEnabled ? "active" : "inactive"}`}
+              onClick={toggleVideo}
+              title={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
+            >
+              <span className="meeting-control-icon">
+                <i className="fa-solid fa-video" aria-hidden="true" />
+              </span>
+              <span className="meeting-control-label">
+                {isVideoEnabled ? "Stop Video" : "Start Video"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className={`meeting-control meeting-control-share ${
+                isScreenSharing ? "active" : "inactive"
+              }`}
+              onClick={toggleScreenShare}
+              title={isScreenSharing ? "Stop screen sharing" : "Share your screen"}
+            >
+              <span className="meeting-control-icon">
+                <i className="fa-solid fa-display" aria-hidden="true" />
+              </span>
+              <span className="meeting-control-label">
+                {isScreenSharing ? "Stop Share" : "Share Screen"}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              className="meeting-control meeting-control-leave"
+              onClick={leaveRoom}
+              title="Leave the meeting room"
+            >
+              <span className="meeting-control-icon">
+                <i className="fa-solid fa-phone" aria-hidden="true" />
+              </span>
+              <span className="meeting-control-label">Leave</span>
+            </button>
+
+            <button
+              type="button"
+              className={`zoom-mobile-menu ${isMobileSidebarOpen ? "open" : ""}`}
+              aria-label={
+                isMobileSidebarOpen ? "Close meeting menu" : "Open meeting menu"
+              }
+              aria-expanded={isMobileSidebarOpen}
+              onClick={() => setIsMobileSidebarOpen((currentValue) => !currentValue)}
+            >
+              <span className="zoom-mobile-menu-bars" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </span>
+            </button>
+          </div>
 
           {errorMessage ? <p className="room-error">{errorMessage}</p> : null}
 
@@ -865,22 +1081,38 @@ export default function RoomPage() {
           </div>
         </div>
 
-        <aside className="zoom-side">
+        {isMobileSidebarOpen ? (
+          <button
+            type="button"
+            className="zoom-side-backdrop"
+            aria-label="Close meeting menu"
+            onClick={() => setIsMobileSidebarOpen(false)}
+          />
+        ) : null}
+
+        <aside className={`zoom-side ${isMobileSidebarOpen ? "zoom-side-open" : ""}`}>
           <div className="zoom-side-header">
             <div className="zoom-side-tabs">
               <button
                 type="button"
                 className={`zoom-tab ${activePanel === "chat" ? "active" : ""}`}
-                onClick={() => setActivePanel("chat")}
+                onClick={() => handlePanelChange("chat")}
               >
                 Chat
               </button>
               <button
                 type="button"
                 className={`zoom-tab ${activePanel === "info" ? "active" : ""}`}
-                onClick={() => setActivePanel("info")}
+                onClick={() => handlePanelChange("info")}
               >
                 Info
+              </button>
+              <button
+                type="button"
+                className={`zoom-tab ${activePanel === "presence" ? "active" : ""}`}
+                onClick={() => handlePanelChange("presence")}
+              >
+                Who is here
               </button>
             </div>
           </div>
@@ -894,16 +1126,20 @@ export default function RoomPage() {
                 currentUserId={currentChatIdentity}
                 onSendMessage={sendMessage}
               />
+            ) : activePanel === "presence" ? (
+              <RoomPresence
+                participants={participants}
+                selfSocketId={selfSocketId}
+              />
             ) : (
-            <RoomInfo
-              roomId={roomId}
-              userName={userName}
-              hostName={hostName}
-              participants={participants}
-              isAudioEnabled={isAudioEnabled}
-              isVideoEnabled={isVideoEnabled}
-              selfSocketId={selfSocketId}
-            />
+              <RoomInfo
+                roomId={roomId}
+                userName={userName}
+                hostName={hostName}
+                participants={participants}
+                isAudioEnabled={isAudioEnabled}
+                isVideoEnabled={isVideoEnabled}
+              />
             )}
           </div>
         </aside>

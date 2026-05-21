@@ -7,7 +7,6 @@ export default function RoomInfo({
   participants,
   isAudioEnabled,
   isVideoEnabled,
-  selfSocketId,
 }) {
   const resolvedHostName = hostName || userName;
   const [isCopied, setIsCopied] = useState(false);
@@ -78,29 +77,6 @@ export default function RoomInfo({
             </strong>
           </li>
         </ul>
-      </section>
-
-      <section className="room-panel room-presence-card">
-        <p className="room-panel-kicker">Presence</p>
-        <h2>Who is here</h2>
-        <div className="room-presence-list">
-          {participants.map((participant) => {
-            const isSelf = participant.socketId === selfSocketId;
-            const isHost = Boolean(participant.isHost);
-
-            return (
-              <div className="room-presence-item" key={participant.socketId}>
-                <div className="room-presence-main">
-                  <span className="room-presence-name">
-                    {participant.userName}
-                    {isSelf ? <span className="room-presence-you"> (You)</span> : null}
-                  </span>
-                  {isHost ? <span className="room-presence-badge">Host</span> : null}
-                </div>
-              </div>
-            );
-          })}
-        </div>
       </section>
     </section>
   );

@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 
+import Toast from "../components/Toast";
 import { markGuestSession } from "../utils/session";
 import { API_BASE_URL } from "../config";
 
@@ -9,6 +10,7 @@ export default function GuestPage() {
   const [searchParams] = useSearchParams();
   const initialRoomId = searchParams.get("roomId") || "";
 
+  const [guestNameInput, setGuestNameInput] = useState("");
   const [roomCodeInput, setRoomCodeInput] = useState(initialRoomId);
   const [errorMessage, setErrorMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -17,8 +19,31 @@ export default function GuestPage() {
     () => roomCodeInput.trim().toUpperCase(),
     [roomCodeInput]
   );
+  const normalizedGuestName = useMemo(
+    () => guestNameInput.trim().replace(/\s+/g, " "),
+    [guestNameInput]
+  );
+
+  useEffect(() => {
+    if (!errorMessage) {
+      return undefined;
+    }
+
+    const timeoutId = window.setTimeout(() => {
+      setErrorMessage("");
+    }, 3200);
+
+    return () => {
+      window.clearTimeout(timeoutId);
+    };
+  }, [errorMessage]);
 
   const handleJoinGuest = async () => {
+    if (!normalizedGuestName) {
+      setErrorMessage("Please enter your display name.");
+      return;
+    }
+
     if (!normalizedRoomCode) {
       setErrorMessage("Please enter a room ID.");
       return;
@@ -28,7 +53,7 @@ export default function GuestPage() {
     setErrorMessage("");
 
     try {
-      markGuestSession();
+      markGuestSession(normalizedGuestName);
       const response = await fetch(
         `${API_BASE_URL}/meetings/code/${normalizedRoomCode}`
       );
@@ -47,7 +72,7 @@ export default function GuestPage() {
 
       navigate(`/room/${normalizedRoomCode}`, {
         state: {
-          userName: "Guest User",
+          userName: normalizedGuestName,
           userId: "",
           isGuest: true,
           role: "guest",
@@ -62,11 +87,16 @@ export default function GuestPage() {
   };
 
   const handleInstantMeeting = () => {
+    if (!normalizedGuestName) {
+      setErrorMessage("Please enter your display name.");
+      return;
+    }
+
     const roomCode = `GUEST-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 
     setIsLoading(true);
     setErrorMessage("");
-    markGuestSession();
+    markGuestSession(normalizedGuestName);
 
     fetch(`${API_BASE_URL}/meetings/guest`, {
       method: "POST",
@@ -83,7 +113,7 @@ export default function GuestPage() {
 
         navigate(`/room/${roomCode}`, {
           state: {
-            userName: "Guest User",
+            userName: normalizedGuestName,
             userId: "",
             isGuest: true,
             role: "guest",
@@ -101,6 +131,7 @@ export default function GuestPage() {
 
   return (
     <main className="guest-page">
+      <Toast message={errorMessage} />
       <section className="guest-shell">
         <div className="guest-topbar">
           <div>
@@ -116,6 +147,19 @@ export default function GuestPage() {
         </div>
 
         <div className="guest-card">
+          <label className="guest-label" htmlFor="guestDisplayName">
+            Display Name
+          </label>
+          <input
+            id="guestDisplayName"
+            className="guest-input"
+            type="text"
+            placeholder="Enter your name"
+            value={guestNameInput}
+            onChange={(event) => setGuestNameInput(event.target.value)}
+            maxLength={32}
+          />
+
           <label className="guest-label" htmlFor="guestRoomCode">
             Meeting ID
           </label>
@@ -145,7 +189,6 @@ export default function GuestPage() {
               Instant Meeting
             </button>
           </div>
-          {errorMessage ? <p className="guest-error">{errorMessage}</p> : null}
           <p className="guest-hint">
             Instant Meeting always creates a new meeting ID.
           </p>

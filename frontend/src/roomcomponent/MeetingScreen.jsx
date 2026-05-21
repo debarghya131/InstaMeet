@@ -22,6 +22,11 @@ export default function MeetingScreen({
   const filteredRemoteFeeds = selfSocketId
     ? remoteFeeds.filter((feed) => feed.socketId !== selfSocketId)
     : remoteFeeds;
+  const isSoloView = filteredRemoteFeeds.length === 0;
+  const hasLiveVideoTrack = (stream) =>
+    Boolean(
+      stream?.getVideoTracks?.().some((track) => track.readyState === "live")
+    );
 
   const tiles = [
     {
@@ -40,8 +45,8 @@ export default function MeetingScreen({
 
   return (
     <section className="meeting-stage">
-      <div className="meeting-grid">
-        {filteredRemoteFeeds.length === 0 ? (
+      <div className={`meeting-grid ${isSoloView ? "meeting-grid-solo" : ""}`}>
+        {isSoloView ? (
           <div className="meeting-empty">
             <div className="meeting-empty-orb" />
             <h3>Waiting for participants</h3>
@@ -52,9 +57,11 @@ export default function MeetingScreen({
         {tiles.map((tile) => (
           <div
             key={tile.socketId}
-            className={`meeting-tile ${tile.isLocal ? "meeting-tile-local" : ""}`}
+            className={`meeting-tile ${tile.isLocal ? "meeting-tile-local" : ""} ${
+              isSoloView && tile.isLocal ? "meeting-tile-solo" : ""
+            }`}
           >
-            {tile.stream ? (
+            {tile.stream && !tile.isVideoOff && hasLiveVideoTrack(tile.stream) ? (
               <video
                 autoPlay
                 muted={tile.isLocal}
