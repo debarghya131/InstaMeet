@@ -1,4 +1,14 @@
 node_modules/
 .env
+.env.*
+backend/.env
+frontend/.env
+frontend/.vite/
+frontend/dist/
+backend/node_modules/
+frontend/node_modules/
 .DS_Store
 .codex
+.agents
+.qodo
+.vercel
