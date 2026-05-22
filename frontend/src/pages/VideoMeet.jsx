@@ -12,15 +12,7 @@ import {
   markGuestSession,
   resolveSessionContext,
 } from "../utils/session";
-import { API_BASE_URL } from "../config";
-
-const rtcConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-  ],
-};
+import { API_BASE_URL, ICE_SERVER_LABELS, RTC_CONFIGURATION } from "../config";
 export default function VideoMeetPage() {
   const navigate = useNavigate();
   const localVideoRef = useRef(null);
@@ -205,7 +197,7 @@ export default function VideoMeetPage() {
 
         attachStreamToPreview(stream);
 
-        const peerConnection = new RTCPeerConnection(rtcConfiguration);
+        const peerConnection = new RTCPeerConnection(RTC_CONFIGURATION);
         peerConnectionRef.current = peerConnection;
 
         stream.getTracks().forEach((track) => {
@@ -223,7 +215,7 @@ export default function VideoMeetPage() {
         peerConnection.onicecandidate = (event) => {
           if (event.candidate) {
             setCandidateCount((currentCount) => currentCount + 1);
-            setStunStatus("STUN server responding and ICE candidates gathered.");
+            setStunStatus("ICE server responding and candidates gathered.");
           }
 
           if (!event.candidate && peerConnection.iceGatheringState === "complete") {
@@ -238,11 +230,11 @@ export default function VideoMeetPage() {
 
         await peerConnection.setLocalDescription(offer);
         setConnectionState("offer-created");
-        setStunStatus("STUN server activated for ICE gathering.");
+        setStunStatus("ICE server activated for candidate gathering.");
       } catch (error) {
         setErrorMessage(error.message || "Unable to start local media.");
         setConnectionState("failed");
-        setStunStatus("STUN activation failed.");
+        setStunStatus("ICE activation failed.");
       }
     };
 
@@ -578,7 +570,7 @@ export default function VideoMeetPage() {
                 <span>ICE Gathering:</span> {iceGatheringState}
               </p>
               <p>
-                <span>STUN Status:</span> {stunStatus}
+                <span>ICE Status:</span> {stunStatus}
               </p>
               <p>
                 <span>Candidates Found:</span> {candidateCount}
@@ -596,16 +588,16 @@ export default function VideoMeetPage() {
               <ul>
                 <li>Room ID: {roomCode}</li>
                 <li>User: {displayName}</li>
-                <li>STUN: {stunStatus}</li>
+                <li>ICE: {stunStatus}</li>
               </ul>
             </div>
 
             <div className="video-server-box">
-              <h3>Active STUN Servers</h3>
+              <h3>Configured ICE Servers</h3>
               <ul>
-                <li>stun:stun.l.google.com:19302</li>
-                <li>stun:stun1.l.google.com:19302</li>
-                <li>stun:stun2.l.google.com:19302</li>
+                {ICE_SERVER_LABELS.map((serverLabel) => (
+                  <li key={serverLabel}>{serverLabel}</li>
+                ))}
               </ul>
             </div>
           </div>

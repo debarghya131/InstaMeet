@@ -7,10 +7,9 @@ if (typeof process.loadEnvFile === "function" && fs.existsSync("./.env")) {
 }
 
 const PORT = process.env.PORT || 5000;
-const isProduction = process.env.NODE_ENV === "production";
 
-if (isProduction && !process.env.JWT_SECRET) {
-  console.error("JWT_SECRET is required in production.");
+if (!process.env.JWT_SECRET) {
+  console.error("JWT_SECRET is required to start the backend.");
   process.exit(1);
 }
 
