@@ -14,15 +14,7 @@ import {
   resolveSessionContext,
   setPendingHostRoom,
 } from "../utils/session";
-import { API_BASE_URL, SOCKET_SERVER_URL } from "../config";
-
-const rtcConfiguration = {
-  iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-  ],
-};
+import { API_BASE_URL, RTC_CONFIGURATION, SOCKET_SERVER_URL } from "../config";
 
 export default function RoomPage() {
   const { roomId } = useParams();
@@ -42,7 +34,14 @@ export default function RoomPage() {
     roomId: "",
     setupPath: "/video-meet",
   });
-  const { userName, userId, isGuestUser, isAuthenticatedUser, setupPath } =
+  const {
+    authToken,
+    userName,
+    userId,
+    isGuestUser,
+    isAuthenticatedUser,
+    setupPath,
+  } =
     resolveSessionContext(location.state);
 
   const [participants, setParticipants] = useState([]);
@@ -221,7 +220,7 @@ export default function RoomPage() {
       return existingConnection;
     }
 
-    const peerConnection = new RTCPeerConnection(rtcConfiguration);
+    const peerConnection = new RTCPeerConnection(RTC_CONFIGURATION);
     peerConnectionsRef.current.set(targetSocketId, peerConnection);
 
     const localStream = localStreamRef.current;
@@ -426,7 +425,7 @@ export default function RoomPage() {
     setIsScreenSharing(false);
   };
 
-  const teardownRoomConnection = useCallback((mode = "leave") => {
+  const teardownRoomConnection = useCallback((mode = "disconnect") => {
     if (socketRef.current) {
       socketRef.current.emit("leave-room", { roomId, mode });
       socketRef.current.disconnect();
@@ -566,6 +565,12 @@ export default function RoomPage() {
         setStatusMessage("Connecting to room...");
 
         const socket = io(SOCKET_SERVER_URL, {
+          auth:
+            isAuthenticatedUser && authToken
+              ? {
+                  token: authToken,
+                }
+              : undefined,
           transports: ["websocket"],
           reconnection: false,
           timeout: 8000,
@@ -682,6 +687,11 @@ export default function RoomPage() {
               exitRoom("setup");
             }, 1200);
           }
+          if (payload?.code === "AUTH_REQUIRED") {
+            meetingEndedTimeoutId = window.setTimeout(() => {
+              exitRoom("logout");
+            }, 1200);
+          }
         });
 
         socket.on("disconnect", () => {
@@ -730,12 +740,14 @@ export default function RoomPage() {
         clearTimeout(meetingEndedTimeoutId);
       }
 
-      teardownRoomConnection();
+      teardownRoomConnection("disconnect");
     };
   }, [
     roomId,
+    authToken,
     userId,
     userName,
+    isAuthenticatedUser,
     initialAudioEnabled,
     initialVideoEnabled,
     syncRoomUsers,
