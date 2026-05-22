@@ -1380,12 +1380,15 @@ export default function RoomPage() {
                 localStream={localStreamRef.current}
                 isAudioEnabled={isAudioEnabled}
                 hasAudioTrack={hasLiveAudioTrack}
-                isVideoEnabled={isVideoEnabled}
-                isScreenSharing={isScreenSharing}
-                selfSocketId={selfSocketId}
-                activeSpeakerId={activeSpeakerId}
-                remoteFeeds={remoteFeeds}
-                onToggleAudio={toggleAudio}
+              isVideoEnabled={isVideoEnabled}
+              isScreenSharing={isScreenSharing}
+              selfSocketId={selfSocketId}
+              activeSpeakerId={activeSpeakerId}
+              hasRemoteParticipant={participants.some(
+                (participant) => participant.socketId !== selfSocketId
+              )}
+              remoteFeeds={remoteFeeds}
+              onToggleAudio={toggleAudio}
                 onToggleVideo={toggleVideo}
                 onToggleScreenShare={toggleScreenShare}
                 onLeaveRoom={leaveRoom}

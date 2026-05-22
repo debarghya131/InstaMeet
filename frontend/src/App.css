@@ -1398,6 +1398,12 @@
     linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.96));
 }
 
+.meeting-connecting-copy {
+  margin: 14px 0 0;
+  font-size: 0.82rem;
+  color: rgba(226, 232, 240, 0.76);
+}
+
 .meeting-avatar {
   width: 72px;
   height: 72px;

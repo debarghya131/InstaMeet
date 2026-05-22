@@ -7,6 +7,7 @@ export default function MeetingScreen({
   isScreenSharing,
   selfSocketId,
   activeSpeakerId,
+  hasRemoteParticipant,
   remoteFeeds,
   onToggleAudio,
   onToggleVideo,
@@ -35,7 +36,7 @@ export default function MeetingScreen({
   const filteredRemoteFeeds = selfSocketId
     ? remoteFeeds.filter((feed) => feed.socketId !== selfSocketId)
     : remoteFeeds;
-  const isSoloView = filteredRemoteFeeds.length === 0;
+  const isSoloView = !hasRemoteParticipant;
   const hasLiveVideoTrack = (stream) =>
     Boolean(
       stream?.getVideoTracks?.().some((track) => track.readyState === "live")
@@ -57,6 +58,7 @@ export default function MeetingScreen({
     },
     ...filteredRemoteFeeds.map((feed) => ({
       ...feed,
+      isConnecting: !feed.stream,
       isLocal: false,
     })),
   ];
@@ -107,6 +109,9 @@ export default function MeetingScreen({
             ) : (
               <div className="meeting-placeholder">
                 <div className="meeting-avatar">{getInitials(tile.userName)}</div>
+                {tile.isConnecting ? (
+                  <p className="meeting-connecting-copy">Connecting media...</p>
+                ) : null}
               </div>
             )}
             <div className="meeting-label">
