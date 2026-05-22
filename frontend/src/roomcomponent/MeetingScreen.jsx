@@ -2,15 +2,28 @@ export default function MeetingScreen({
   userName,
   localStream,
   isAudioEnabled,
+  hasAudioTrack,
   isVideoEnabled,
   isScreenSharing,
   selfSocketId,
+  activeSpeakerId,
   remoteFeeds,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
   onLeaveRoom,
 }) {
+  const isVideoControlLocked = isScreenSharing;
+  const audioControlLabel = hasAudioTrack
+    ? isAudioEnabled
+      ? "Mute"
+      : "Unmute"
+    : "Start Mic";
+  const audioControlTitle = hasAudioTrack
+    ? isAudioEnabled
+      ? "Mute microphone"
+      : "Unmute microphone"
+    : "Turn on your microphone";
   const getInitials = (name) =>
     name
       ?.split(" ")
@@ -27,6 +40,10 @@ export default function MeetingScreen({
     Boolean(
       stream?.getVideoTracks?.().some((track) => track.readyState === "live")
     );
+  const hasLiveAudioTrack = (stream) =>
+    Boolean(
+      stream?.getAudioTracks?.().some((track) => track.readyState === "live")
+    );
 
   const tiles = [
     {
@@ -34,6 +51,7 @@ export default function MeetingScreen({
       userName: `${userName} (You)`,
       stream: isVideoEnabled || isScreenSharing ? localStream : null,
       isMuted: !isAudioEnabled,
+      hasAudioTrack,
       isVideoOff: !isVideoEnabled && !isScreenSharing,
       isLocal: true,
     },
@@ -42,6 +60,18 @@ export default function MeetingScreen({
       isLocal: false,
     })),
   ];
+  const orderedTiles = [...tiles];
+
+  if (activeSpeakerId) {
+    const activeTileIndex = orderedTiles.findIndex(
+      (tile) => tile.socketId === activeSpeakerId
+    );
+
+    if (activeTileIndex > 0) {
+      const [activeTile] = orderedTiles.splice(activeTileIndex, 1);
+      orderedTiles.unshift(activeTile);
+    }
+  }
 
   return (
     <section className="meeting-stage">
@@ -54,21 +84,22 @@ export default function MeetingScreen({
           </div>
         ) : null}
 
-        {tiles.map((tile) => (
+        {orderedTiles.map((tile) => (
           <div
             key={tile.socketId}
             className={`meeting-tile ${tile.isLocal ? "meeting-tile-local" : ""} ${
               isSoloView && tile.isLocal ? "meeting-tile-solo" : ""
-            }`}
+            } ${tile.socketId === activeSpeakerId ? "meeting-tile-active" : ""}`}
           >
             {tile.stream && !tile.isVideoOff && hasLiveVideoTrack(tile.stream) ? (
               <video
                 autoPlay
-                muted={tile.isLocal}
+                muted
                 playsInline
                 ref={(video) => {
                   if (video && tile.stream) {
                     video.srcObject = tile.stream;
+                    void video.play().catch(() => {});
                   }
                 }}
                 className="meeting-video"
@@ -81,7 +112,13 @@ export default function MeetingScreen({
             <div className="meeting-label">
               <span>{tile.userName || "Participant"}</span>
               <div className="meeting-badges">
-                {tile.isMuted ? <span className="meeting-badge">Muted</span> : null}
+                {!tile.hasAudioTrack ? (
+                  <span className="meeting-badge">Mic Off</span>
+                ) : tile.socketId === activeSpeakerId ? (
+                  <span className="meeting-badge meeting-badge-speaking">Speaking</span>
+                ) : tile.isMuted ? (
+                  <span className="meeting-badge">Muted</span>
+                ) : null}
                 {tile.isVideoOff ? (
                   <span className="meeting-badge meeting-badge-off">Video Off</span>
                 ) : null}
@@ -91,30 +128,58 @@ export default function MeetingScreen({
         ))}
       </div>
 
+      {filteredRemoteFeeds.map((feed) =>
+        feed.stream && feed.hasAudioTrack !== false && hasLiveAudioTrack(feed.stream) ? (
+          <audio
+            key={`audio-${feed.socketId}`}
+            autoPlay
+            playsInline
+            hidden
+            ref={(audio) => {
+              if (audio && audio.srcObject !== feed.stream) {
+                audio.srcObject = feed.stream;
+                void audio.play().catch(() => {});
+              }
+            }}
+          />
+        ) : null
+      )}
+
       <div className="meeting-controls">
         <button
           className={`meeting-control ${isAudioEnabled ? "active" : "inactive"}`}
           onClick={onToggleAudio}
-          title={isAudioEnabled ? "Mute microphone" : "Unmute microphone"}
+          title={audioControlTitle}
         >
           <span className="meeting-control-icon">
             <i className="fa-solid fa-microphone" aria-hidden="true" />
           </span>
-          <span className="meeting-control-label">
-            {isAudioEnabled ? "Mute" : "Unmute"}
-          </span>
+          <span className="meeting-control-label">{audioControlLabel}</span>
         </button>
 
         <button
-          className={`meeting-control ${isVideoEnabled ? "active" : "inactive"}`}
+          className={`meeting-control ${isVideoEnabled ? "active" : "inactive"} ${
+            isVideoControlLocked ? "meeting-control-disabled" : ""
+          }`}
           onClick={onToggleVideo}
-          title={isVideoEnabled ? "Turn off camera" : "Turn on camera"}
+          title={
+            isVideoControlLocked
+              ? "Stop screen sharing before changing your camera"
+              : isVideoEnabled
+                ? "Turn off camera"
+                : "Turn on camera"
+          }
+          disabled={isVideoControlLocked}
         >
           <span className="meeting-control-icon">
             <i className="fa-solid fa-video" aria-hidden="true" />
           </span>
           <span className="meeting-control-label">
-            {isVideoEnabled ? "Stop Video" : "Start Video"}
+            {isVideoControlLocked
+              ? "Camera Locked"
+              : isVideoEnabled
+                ? "Stop Video"
+                : "Start Video"}
           </span>
         </button>
 

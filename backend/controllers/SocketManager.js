@@ -300,6 +300,7 @@ const setupSocket = (server) => {
           ? String(identity.userId || socket.id) === hostUserId
           : false,
         isMuted: false,
+        hasAudioTrack: Boolean(payload.hasAudioTrack ?? true),
         isVideoOff: false,
         joinedAt: new Date().toISOString(),
       };
@@ -373,13 +374,15 @@ const setupSocket = (server) => {
       });
     });
 
-    socket.on("toggle-audio", ({ roomId, isMuted }) => {
+    socket.on("toggle-audio", ({ roomId, isMuted, hasAudioTrack }) => {
       if (!roomId) {
         return;
       }
 
+      const nextHasAudioTrack = Boolean(hasAudioTrack ?? true);
       const participant = updateParticipantState(roomId, socket.id, {
-        isMuted: Boolean(isMuted),
+        isMuted: nextHasAudioTrack ? Boolean(isMuted) : false,
+        hasAudioTrack: nextHasAudioTrack,
       });
 
       if (participant) {
@@ -436,7 +439,7 @@ const setupSocket = (server) => {
         }
 
         if (remainingParticipants.length === 0) {
-          if (isTransientDisconnect) {
+          if (isTransientDisconnect || isAuthenticatedHostLeavingToSetup) {
             scheduleRoomClose(removedRoomState.roomId);
           } else if (!isAuthenticatedHostLeavingToSetup) {
             await Meeting.deleteOne({ meetingCode: removedRoomState.roomId });

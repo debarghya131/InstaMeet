@@ -12,6 +12,7 @@ import {
   markGuestSession,
   resolveSessionContext,
 } from "../utils/session";
+import { getFriendlyMediaError } from "../utils/mediaErrors";
 import { API_BASE_URL, ICE_SERVER_LABELS, RTC_CONFIGURATION } from "../config";
 export default function VideoMeetPage() {
   const navigate = useNavigate();
@@ -232,7 +233,12 @@ export default function VideoMeetPage() {
         setConnectionState("offer-created");
         setStunStatus("ICE server activated for candidate gathering.");
       } catch (error) {
-        setErrorMessage(error.message || "Unable to start local media.");
+        setErrorMessage(
+          getFriendlyMediaError(
+            error,
+            initialVideoEnabled ? "camera" : "audio"
+          )
+        );
         setConnectionState("failed");
         setStunStatus("ICE activation failed.");
       }
@@ -333,7 +339,7 @@ export default function VideoMeetPage() {
       }
       setErrorMessage("");
     } catch (error) {
-      setErrorMessage(error.message || "Unable to control camera.");
+      setErrorMessage(getFriendlyMediaError(error, "camera"));
     }
   };
 
