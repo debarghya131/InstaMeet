@@ -4,14 +4,42 @@ import "../App.css";
 import logo from "../assets/logo.svg";
 
 const featureImages = Array.from({ length: 11 }, (_, index) => ({
-  src: new URL(`../assets/img${index + 1}.png`, import.meta.url).href,
+  src: new URL(`../assets/optimized/img${index + 1}.webp`, import.meta.url).href,
   label: `Feature ${index + 1}`,
 }));
 
 const guestFeatureImages = Array.from({ length: 5 }, (_, index) => ({
-  src: new URL(`../assets/guestimg${index + 1}.png`, import.meta.url).href,
+  src: new URL(`../assets/optimized/guestimg${index + 1}.webp`, import.meta.url).href,
   label: `Guest Feature ${index + 1}`,
 }));
+
+const socialLinks = [
+  {
+    label: "LinkedIn Profile",
+    href: "https://www.linkedin.com/in/debarghya-bandyopadhyay-953b02400?utm_source=share_via&utm_content=profile&utm_medium=member_android",
+    iconClass: "fa-brands fa-linkedin-in",
+  },
+  {
+    label: "X",
+    href: "https://x.com/debarghya131",
+    iconClass: "fa-brands fa-x-twitter",
+  },
+  {
+    label: "GitHub",
+    href: "https://github.com/debarghya131",
+    iconClass: "fa-brands fa-github",
+  },
+  {
+    label: "Portfolio",
+    href: "https://portfolio.debarghya.org",
+    iconClass: "fa-solid fa-globe",
+  },
+  {
+    label: "Email",
+    href: "mailto:debarghyabandyopadhyay191@gmail.com",
+    iconClass: "fa-solid fa-envelope",
+  },
+];
 
 export default function LandingPage() {
   const navigate = useNavigate();
@@ -157,7 +185,11 @@ export default function LandingPage() {
                   <i className="fa-solid fa-chevron-left" aria-hidden="true" />
                 </button>
                 <figure className="landing-feature-slide">
-                  <img src={activeFeatureImage.src} alt={activeFeatureImage.label} />
+                  <img
+                    src={activeFeatureImage.src}
+                    alt={activeFeatureImage.label}
+                    decoding="async"
+                  />
                 </figure>
                 <button
                   type="button"
@@ -184,6 +216,25 @@ export default function LandingPage() {
               </div>
             </aside>
           </div>
+
+          <section className="landing-social-card" aria-label="Author social links">
+            <p>I always like to make new friends. Follow me on</p>
+            <div className="landing-social-links">
+              {socialLinks.map((link) => (
+                <a
+                  key={link.label}
+                  className="landing-social-link"
+                  href={link.href}
+                  target={link.href.startsWith("mailto:") ? undefined : "_blank"}
+                  rel={link.href.startsWith("mailto:") ? undefined : "noreferrer"}
+                  aria-label={link.label}
+                  title={link.label}
+                >
+                  <i className={link.iconClass} aria-hidden="true" />
+                </a>
+              ))}
+            </div>
+          </section>
         </div>
       </div>
     </main>

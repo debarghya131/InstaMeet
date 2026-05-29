@@ -12,6 +12,11 @@ import {
   loginUser,
   registerUser,
 } from "../controllers/UserController.js";
+import {
+  apiLimiter,
+  authLimiter,
+  meetingLimiter,
+} from "../utils/rateLimit.js";
 
 const router = express.Router();
 
@@ -29,16 +34,16 @@ router.get("/test", (req, res) => {
   });
 });
 
-router.get("/all", getUsers);
-router.get("/meetings", getMeetings);
-router.get("/meetings/code/:meetingCode", getMeetingByCode);
-router.get("/me", getCurrentUser);
-router.get("/my-meetings", getMyMeetings);
-router.get("/:id", getUserById);
-router.post("/register", registerUser);
-router.post("/login", loginUser);
-router.post("/meetings", createMeeting);
-router.post("/meetings/guest", createGuestMeeting);
-router.post("/meetings/end", endHostedMeeting);
+router.get("/all", apiLimiter, getUsers);
+router.get("/meetings", apiLimiter, getMeetings);
+router.get("/meetings/code/:meetingCode", apiLimiter, getMeetingByCode);
+router.get("/me", apiLimiter, getCurrentUser);
+router.get("/my-meetings", apiLimiter, getMyMeetings);
+router.get("/:id", apiLimiter, getUserById);
+router.post("/register", authLimiter, registerUser);
+router.post("/login", authLimiter, loginUser);
+router.post("/meetings", meetingLimiter, createMeeting);
+router.post("/meetings/guest", meetingLimiter, createGuestMeeting);
+router.post("/meetings/end", meetingLimiter, endHostedMeeting);
 
 export default router;

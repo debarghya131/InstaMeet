@@ -7,6 +7,9 @@ import setupSocket from "./controllers/SocketManager.js";
 
 const app = express();
 const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
+const trustProxy = Number(process.env.TRUST_PROXY ?? 1);
+
+app.set("trust proxy", Number.isNaN(trustProxy) ? 1 : trustProxy);
 
 app.use(
   cors({
