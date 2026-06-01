@@ -9,7 +9,7 @@ peer-to-peer media, and MongoDB for storing users and meeting records. ⚡
 
 ## Live Demo 🌐
 
-[https://instameet.debarghya.org](https://instameet.debarghya.org)
+[https://instameet.debarghya.org](https://instameet.debarghya.org)   👈
 
 ## Motivation 💡
 
