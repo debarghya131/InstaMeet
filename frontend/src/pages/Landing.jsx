@@ -1,7 +1,25 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { io } from "socket.io-client";
 import "../App.css";
 import logo from "../assets/logo.svg";
+import { SOCKET_SERVER_URL, WEBSITE_API_BASE_URL } from "../config";
+
+const recordWebsiteView = async () => {
+  const response = await fetch(`${WEBSITE_API_BASE_URL}/views`, {
+    credentials: "include",
+    method: "POST",
+  });
+  const result = await response.json();
+
+  if (!response.ok) {
+    throw new Error(result.message || "Unable to load website views.");
+  }
+
+  return result.data.views;
+};
+
+const formatViewCount = (count) => new Intl.NumberFormat("en").format(count);
 
 const featureImages = Array.from({ length: 11 }, (_, index) => ({
   src: new URL(`../assets/optimized/img${index + 1}.webp`, import.meta.url).href,
@@ -44,11 +62,48 @@ const socialLinks = [
 export default function LandingPage() {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [websiteViews, setWebsiteViews] = useState(null);
+  const [websiteViewStatus, setWebsiteViewStatus] = useState("loading");
   const [activeFeatureTab, setActiveFeatureTab] = useState("features");
   const [activeFeatureIndex, setActiveFeatureIndex] = useState(0);
   const activeImages =
     activeFeatureTab === "features" ? featureImages : guestFeatureImages;
   const activeFeatureImage = activeImages[activeFeatureIndex] || activeImages[0];
+
+  useEffect(() => {
+    let isActive = true;
+    const socket = io(SOCKET_SERVER_URL);
+
+    socket.on("website-views-updated", ({ views }) => {
+      if (isActive && Number.isFinite(views)) {
+        setWebsiteViews(views);
+        setWebsiteViewStatus("ready");
+      }
+    });
+
+    recordWebsiteView()
+      .then((views) => {
+        if (isActive) {
+          setWebsiteViews(views);
+          setWebsiteViewStatus("ready");
+        }
+      })
+      .catch((error) => {
+        console.warn("Unable to load website views.", error);
+
+        if (isActive) {
+          setWebsiteViewStatus((currentStatus) =>
+            currentStatus === "ready" ? currentStatus : "failed"
+          );
+        }
+      });
+
+    return () => {
+      isActive = false;
+      socket.off("website-views-updated");
+      socket.disconnect();
+    };
+  }, []);
 
   const handleStartFlow = () => {
     setIsMobileMenuOpen(false);
@@ -77,9 +132,26 @@ export default function LandingPage() {
       <div className="landing-overlay">
         <div className="landing-shell">
           <header className="landing-navbar">
-            <Link className="landing-brand" to="/">
-              <img className="brand-logo" src={logo} alt="InstaMeet logo" />
-            </Link>
+            <div className="landing-brand-group">
+              <Link className="landing-brand" to="/">
+                <img className="brand-logo" src={logo} alt="InstaMeet logo" />
+              </Link>
+              {websiteViewStatus !== "failed" && (
+                <div
+                  className={`website-view-counter ${
+                    websiteViewStatus === "loading" ? "loading" : ""
+                  }`}
+                  aria-live="polite"
+                  title="Total website views"
+                >
+                  <i className="fa-regular fa-eye" aria-hidden="true" />
+                  <span className="website-view-label">Views</span>
+                  <strong>
+                    {websiteViews === null ? "..." : formatViewCount(websiteViews)}
+                  </strong>
+                </div>
+              )}
+            </div>
 
             <button
               type="button"

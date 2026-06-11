@@ -3,6 +3,7 @@ import http from "http";
 import cors from "cors";
 
 import usersRouter from "./routes/UsersRoutes.js";
+import websiteRouter from "./routes/WebsiteRoutes.js";
 import setupSocket from "./controllers/SocketManager.js";
 
 const app = express();
@@ -14,6 +15,7 @@ app.set("trust proxy", Number.isNaN(trustProxy) ? 1 : trustProxy);
 app.use(
   cors({
     origin: allowedOrigin,
+    credentials: true,
   })
 );
 app.use(express.json());
@@ -34,6 +36,7 @@ app.get("/api/health", (req, res) => {
 });
 
 app.use("/api/users", usersRouter);
+app.use("/api/website", websiteRouter);
 
 app.use((req, res) => {
   res.status(404).json({

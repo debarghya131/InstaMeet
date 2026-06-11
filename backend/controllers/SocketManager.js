@@ -204,6 +204,12 @@ const closeMeetingRoom = async (
   roomHostMap.delete(roomId);
 };
 
+const broadcastWebsiteViews = (views) => {
+  if (ioInstance) {
+    ioInstance.emit("website-views-updated", { views });
+  }
+};
+
 const setupSocket = (server) => {
   const allowedOrigin = process.env.CORS_ORIGIN || "http://localhost:5173";
   const io = new Server(server, {
@@ -492,4 +498,4 @@ const setupSocket = (server) => {
 };
 
 export default setupSocket;
-export { closeMeetingRoom };
+export { broadcastWebsiteViews, closeMeetingRoom };
